@@ -21,7 +21,7 @@ SDObject loads at roughly 300 bytes less than the original SDCard module did, wi
 
 ### Test:
 
-You can run scripts directly from the sdcard. The below example will write, import and run a simple test script from the Sd Card.
+You can run scripts directly from the sdcard. The below example will write, import and run a simple test script from the SD Card.
 
 ```python
 import sdcard
