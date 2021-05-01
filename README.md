@@ -25,7 +25,7 @@ SD card script for Raspberry Pi Pico. This is fundamentally the same script from
 
 ### Test:
 
-You can run scripts directly from the sdcard. The below example will write, import and run a simple test script from the SD Card. Note that `mount=True` and `drive='/sd'` are actually the defaults and it is unnecessary to define them if those are the values you want. I included them in the script below solely to give an examplle of all the constructor arguments.
+You can run scripts directly from the sdcard. The below example will write, import and run a simple test script from the SD Card. Note that `mount=True` and `drive='/sd'` are actually the defaults and it is unnecessary to define them if those are the values you want. I included them in the script below solely to give a complete example of the constructor arguments.
 
 ```python
 import sdcard
