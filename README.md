@@ -46,3 +46,12 @@ test.Test()
 #eject card
 sd.eject()
 ```
+
+### Tips:
+
+If you have a card reader that automatically converts 5v to 3.3v it will work, but only if your Pico is plugged into a USB source. A solution to this is to completely remove the level shifter from the card and short `Vin` to `Vout` where the level shifter was, as illustrated below. This will allow you to connect the reader directly to 3.3v.
+
+![example image](https://i.imgur.com/G0A7XBn.jpg "level shifter removed and shorted")
+
+Another solution that utilizes a card reader adapter can be found [here](https://www.raspberrypi.org/forums/viewtopic.php?f=146&t=307275#p1838662)
+
