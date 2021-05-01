@@ -1,7 +1,5 @@
 # pico-sd-card
-SD card script for Raspberry Pi Pico
-
-This is fundamentally the same script from [here](https://github.com/micropython/micropython/blob/a1bc32d8a8fbb09bc04c2ca07b10475f7ddde8c3/drivers/sdcard/sdcard.py) with numerous syntax and functional changes applied
+SD card script for Raspberry Pi Pico. This is fundamentally the same script from [here](https://github.com/micropython/micropython/blob/a1bc32d8a8fbb09bc04c2ca07b10475f7ddde8c3/drivers/sdcard/sdcard.py) with numerous syntax and functional changes applied.
 
 ### The Changes include:
 
@@ -16,7 +14,9 @@ This is fundamentally the same script from [here](https://github.com/micropython
 9) SDCard is now a wrapper for SDObject which automatically mounts the card and adds it to sys.path
 
 
-SDobject loads at roughly 300 bytes less than the original SDCard module did, without losing or compromising any functionality.
+### Extra:
+
+SDObject loads at roughly 300 bytes less than the original SDCard module did, without losing or compromising any functionality.
 
 
 ### Test:
