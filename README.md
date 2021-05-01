@@ -8,10 +8,11 @@ SD card script for Raspberry Pi Pico. This is fundamentally the same script from
 3) all commands have been converted to constants
 4) strings have been shortened to reflect the same meaning of their intended message in less characters
 5) all unnecessary comparissons have been removed
-6) support for pyboard was removed
-7) imports have been made more specific
-8) main class has been renamed SDObject
-9) SDCard is now a wrapper for SDObject which automatically mounts the card and adds it to sys.path
+6) command construction has been changed entirely
+7) support for pyboard was removed
+8) imports have been made more specific
+9) main class has been renamed SDObject
+10) SDCard is now a wrapper for SDObject which automatically mounts the card and adds it to sys.path
 
 
 ### Extra:
