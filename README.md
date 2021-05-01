@@ -11,13 +11,15 @@ SD card script for Raspberry Pi Pico. This is fundamentally the same script from
 6) command construction has been changed entirely
 7) support for pyboard was removed
 8) imports have been made more specific
-9) main class has been renamed SDObject
-10) SDCard is now a wrapper for SDObject which automatically mounts the card and adds it to sys.path
+9) main class has been renamed `SDObject`
+10) `SDCard` is now a wrapper for `SDObject` which automatically mounts the card and adds it to `sys.path`
 
 
 ### Extra:
 
-SDObject loads at roughly 300 bytes less than the original SDCard module did, without losing or compromising any functionality.
+1) SDObject loads at roughly 300 bytes less than the original SDCard module did, without losing or compromising any functionality.
+2) An `mpy-cross` compiled version is provided for those that don't intend to freeze `sdcard.py` into their firmware
+
 
 
 ### Test:
