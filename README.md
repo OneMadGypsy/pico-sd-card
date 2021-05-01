@@ -4,7 +4,7 @@ SD card script for Raspberry Pi Pico. This is fundamentally the same script from
 ### The Changes include:
 
 1) numerous unnecessary variables have been removed
-2) while loops have been replaced with range loops where possible
+2) `while` loops have been replaced with `range` loops where possible
 3) all commands have been converted to constants
 4) strings have been shortened to reflect the same meaning of their intended message in less characters
 5) all unnecessary comparissons have been removed
