@@ -13,6 +13,7 @@ SD card script for Raspberry Pi Pico. This is fundamentally the same script from
 8) imports have been made more specific
 9) main class has been renamed `SDObject`
 10) `SDCard` is now a wrapper for `SDObject` which automatically mounts the card and adds it to `sys.path`
+11) everything has been annotated
 
 
 ### Extra:
@@ -24,13 +25,13 @@ SD card script for Raspberry Pi Pico. This is fundamentally the same script from
 
 ### Test:
 
-You can run scripts directly from the sdcard. The below example will write, import and run a simple test script from the SD Card.
+You can run scripts directly from the sdcard. The below example will write, import and run a simple test script from the SD Card. Note that `mount=True` and `drive='/sd'` are actually the defaults and it is unnecessary to define them if those are the values you want. I included them in the script below solely to give an examplle of all the constructor arguments.
 
 ```python
 import sdcard
 
 #init sd card
-sd  = sdcard.SDCard(1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20)
+sd  = sdcard.SDCard(1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20, mount=True, drive='/sd')
 
 #write a script to the card
 with open("{}/test.py".format(sd.drive), 'w') as f:
