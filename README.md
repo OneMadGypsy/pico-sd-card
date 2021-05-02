@@ -59,3 +59,5 @@ If you are using a Pimoroni Pico Explorer and the type of card reader depicted i
 
 ![example image](https://i.imgur.com/YR19ubJ.jpg "hacked")
 
+You may get a message in your REPL something to the effect of 'op code .... 700203645'. Just restart your Pico and try again. I only notice this error when I have freshly uploaded a new script to the board, and even then not always. In my experience, resetting the board fixes it every time. I don't think it has anything to do with the sdcard script. Although it may have something to do with something the script is using. My Pico is also severely overclocked so, maybe you will never see this message, and it is entirely due to one of the many things I have done to my Pico. I only put this here because I never got that message until I started using the sdcard script. Either way, it's rare, will happen immediately or not at all and can be fixed with a reset.
+
