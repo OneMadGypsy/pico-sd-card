@@ -83,8 +83,8 @@ class SDObject(object):
         for _ in range(16):
             self.spi.write(_FF)
 
-        # init card
-        for i in range(1, 6):
+        # init card ~ 5 attempts
+        for _ in range(5):
             if self.cmd(_CMD0, 0, 0x95) == _IDLE_STATE:
                 break
         else:
