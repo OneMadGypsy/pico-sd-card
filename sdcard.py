@@ -142,7 +142,7 @@ class SDObject(object):
                 return
         raise OSError("Timeout")
         
-    def cmd(self, cmd:int, arg:int=0, crc:int=0, final:int=0, release:bool=True, skip1:bool=False) -> None:
+    def cmd(self, cmd:int, arg:int=0, crc:int=0, final:int=0, release:bool=True, skip1:bool=False) -> int:
         self.cs(0)
         
         self.spi.write((cmd << 40 | arg | crc).to_bytes(6, 'big'))
