@@ -32,7 +32,7 @@ SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.
 ### modules/
 >This contains a pure C port of `sdcard.py` packaged as a `USER_C_MODULE`. If you have the sdk setup it can be compiled into firware by navigating to `./ports/rp2/` and running the following command:
 
-`make USER_C_MODULES=./path/to/modules/micropython.cmake all`
+`make USER_C_MODULES=/path/to/modules/micropython.cmake all`
 
 ## Test:
 
