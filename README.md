@@ -1,7 +1,7 @@
 # pico-sd-card
-Python SD card script for Raspberry Pi Pico. This is fundamentally the same script from [here](https://github.com/micropython/micropython/blob/a1bc32d8a8fbb09bc04c2ca07b10475f7ddde8c3/drivers/sdcard/sdcard.py) with numerous syntax and functional changes applied.
+SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.py` script from [here](https://github.com/micropython/micropython/blob/a1bc32d8a8fbb09bc04c2ca07b10475f7ddde8c3/drivers/sdcard/sdcard.py), but has been expanded to include ports of that script with numerous changes.
 
-### The Changes include:
+## The Original Changes Include:
 
 1) numerous unnecessary variables have been removed
 2) `while` loops have been replaced with `range` loops where possible
@@ -15,13 +15,18 @@ Python SD card script for Raspberry Pi Pico. This is fundamentally the same scri
 10) `SDCard` is now a wrapper for `SDObject` which automatically mounts the card and adds it to `sys.path`
 11) everything has been annotated
 
+## sdcard.py
+This is intended to be used as a frozen module. For information regarding how to setup the sdk and freeze a module you can refer to [this post](https://www.raspberrypi.org/forums/viewtopic.php?f=146&t=306449#p1862108) on the Raspberry Pi forum.
 
-### Extra:
+## sdcard.mpy
+This is a cross-compiled version of `sdcard.py`. It is intended to be uploaded to your board as you would any normal `.py` script.
 
-1) SDObject loads at roughly 300 bytes less than the original SDCard module did, without losing or compromising any functionality.
-2) An `mpy-cross` compiled version is provided for those that don't intend to freeze `sdcard.py` into their firmware
+## modules/
+This contains a pure C port of `sdcard.py` packaged as a `USER_C_MODULE`. If you have the sdk setup it can be compiled into firware by navigating to `./ports/rp2/` and running the following command:
 
+`make USER_C_MODULES=./path/to/modules/micropython.cmake all`
 
+**All 3 ports have an identicaal interface from the front-end.**
 
 ### Test:
 
@@ -58,6 +63,3 @@ Another solution that utilizes a micro sd card adapter can be found [here](https
 If you are using a Pimoroni Pico Explorer and the type of card reader depicted in the image above, using the Explorer's `SPI` breakout pins will be futile. These readers don't really honor chip select and your screen will stop working while the reader is plugged in. The complications are multiplied because the Explorer uses all of the `SPI1` capable pins for the motor drivers and it's buttons. My solution to this requires some hacking. By soldering female headers across pins 8 through 11 you can bypass the motor drivers and use `SPI1` for the card reader. It's not illustrated in the below image but I also broke off the male header pins just to make sure that there was no connection at all to the motor drivers. I soldered a female header onto the 3.3v pin because I'm already using the Explorer's breakout for something else. I just unplugged it all to simplify the image.
 
 ![example image](https://i.imgur.com/YR19ubJ.jpg "hacked")
-
-You may get a message in your REPL something to the effect of 'op code .... 700203645'. Just restart your Pico and try again. I only notice this error when I have freshly uploaded a new script to the board, and even then not always. In my experience, resetting the board fixes it every time. I don't think it has anything to do with the sdcard script. Although it may have something to do with something the script is using. My Pico is also severely overclocked so, maybe you will never see this message, and it is entirely due to one of the many things I have done to my Pico. I only put this here because I never got that message until I started using the sdcard script. Either way, it's rare, will happen immediately or not at all and can be fixed with a reset.
-
