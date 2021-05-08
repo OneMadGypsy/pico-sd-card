@@ -157,11 +157,11 @@ STATIC void sdcard_init_v1(sdcard_SDObject_obj_t *self) {
         sdcard_cmd(self, CMD55);
         if (sdcard_cmd(self, CMD41) == 0){
             self->cdv = BLOCK;
-            self->type = "SD Card v1";
+            self->type = "[SDCard v1]";
             return;
         }
     }
-    mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Timeout V1"));
+    mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Timeout SDCard v1"));
 }
 
 STATIC void sdcard_init_v2(sdcard_SDObject_obj_t *self) {
@@ -172,11 +172,11 @@ STATIC void sdcard_init_v2(sdcard_SDObject_obj_t *self) {
         if (sdcard_cmd(self, CMD41, 0x40000000) == 0) {
             sdcard_cmd(self, CMD58, .final=4);
             self->cdv = 1;
-            self->type = "SD Card v2";
+            self->type = "[SDCard v2]";
             return;
         }
     }
-    mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Timeout V2"));
+    mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Timeout SDCard v2"));
 }
 
 STATIC void sdcard_readinto(sdcard_SDObject_obj_t *self, uint8_t *csd, int len) {
@@ -259,12 +259,13 @@ STATIC mp_obj_t SDObject_make_new(const mp_obj_type_t *type, size_t n_args, size
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_spi       , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0       }},
         { MP_QSTR_cs        , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0       }},
-        { MP_QSTR_baudrate  , MP_ARG_INT                   , {.u_int     = 0x500000}},
+        { MP_QSTR_baudrate  , MP_ARG_INT                   , {.u_int     = 0x500000}}, //5 mb
     }; 
     
     mp_arg_val_t kw[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all_kw_array(n_args, n_kw, args, MP_ARRAY_SIZE(allowed_args), allowed_args, kw);
     
+    //setup spi
     self->spi = (kw[ARG_spi].u_int == 0)? spi0 : spi1;
     spi_init(self->spi, SPI_BAUDRATE);
     spi_set_format(self->spi, SPI_BITS, SPI_POLARITY, SPI_PHASE, SPI_FIRSTBIT);
@@ -294,7 +295,7 @@ STATIC mp_obj_t SDObject_make_new(const mp_obj_type_t *type, size_t n_args, size
     
     if      (r1 == IDLE_STATE)                  sdcard_init_v2(self);
     else if (r1 == (IDLE_STATE | ILLEGAL_CMD))  sdcard_init_v1(self);
-    else mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Unknown Version"));
+    else    mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Unknown Version"));
     
     if (sdcard_cmd(self, CMD9, .hold=true)) mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("No Response"));
             
@@ -307,17 +308,14 @@ STATIC mp_obj_t SDObject_make_new(const mp_obj_type_t *type, size_t n_args, size
         uint16_t c_size_mult  = ((csd[9] & 0x3) << 1) | (csd[10] >> 7);
         self->sectors = (c_size + 1) * pow(2, (c_size_mult + 2));
     }
-    else
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("CSD Format Unsupported"));
+    else mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("CSD Format Unsupported"));
         
      
-    if (sdcard_cmd(self, CMD16, BLOCK) != 0)
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Can't Set Block Size"));
+    if (sdcard_cmd(self, CMD16, BLOCK) != 0) mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Can't Set Block Size"));
 
     spi_set_baudrate(self->spi, kw[ARG_baudrate].u_int);
     
     //mp_printf(MP_PYTHON_PRINTER, "card ready\n");
-        
     return MP_OBJ_FROM_PTR(self);
 }
 
@@ -326,8 +324,7 @@ STATIC mp_obj_t SDObject_make_new(const mp_obj_type_t *type, size_t n_args, size
 STATIC void sdcard_readblocks(sdcard_SDObject_obj_t *self, int blocknum, uint8_t *buf, int len) {
     // mp_printf(MP_PYTHON_PRINTER, "readblocks\n");
     uint64_t nblocks = len/BLOCK;
-    if ((!nblocks) || (len%BLOCK)) 
-        mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("Invalid Buffer Length"));
+    if ((!nblocks) || (len%BLOCK)) mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("Invalid Buffer Length"));
     
     if (nblocks == 1) {
         if (sdcard_cmd(self, CMD17, blocknum*self->cdv, .hold=true)) {
@@ -349,8 +346,7 @@ STATIC void sdcard_readblocks(sdcard_SDObject_obj_t *self, int blocknum, uint8_t
             sdcard_readinto(self, b.buff, BLOCK);
         }
             
-        if (sdcard_cmd(self, CMD12, 0, 0xFF, .skip=true))
-            mp_raise_OSError(5);
+        if (sdcard_cmd(self, CMD12, 0, 0xFF, .skip=true)) mp_raise_OSError(5);
     }
     
 }
@@ -361,6 +357,7 @@ STATIC mp_obj_t SDObject_readblocks(mp_obj_t self_in, mp_obj_t block_num, mp_obj
 
     mp_get_buffer_raise(buf, &bufinfo, MP_BUFFER_WRITE);
     sdcard_readblocks(self, mp_obj_get_int(block_num), bufinfo.buf, bufinfo.len);
+    //errors are handled manually in sdcard_readblocks ~ if we got this far there was no error
     return mp_const_true;
 }
 
@@ -370,8 +367,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(SDObject_readblocks_obj, SDObject_readblocks);
 STATIC void sdcard_writeblocks(sdcard_SDObject_obj_t *self, int blocknum, uint8_t *buf, int len) {
     //mp_printf(MP_PYTHON_PRINTER, "writeblocks\n");
     uint64_t nblocks = len/BLOCK;
-    if ((!nblocks) || (len%BLOCK)) 
-        mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("Invalid Buffer Length"));
+    if ((!nblocks) || (len%BLOCK)) mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("Invalid Buffer Length"));
     
     if (nblocks == 1) {
         if (sdcard_cmd(self, CMD24, blocknum*self->cdv)) mp_raise_OSError(5);
@@ -399,6 +395,7 @@ STATIC mp_obj_t SDObject_writeblocks(mp_obj_t self_in, mp_obj_t block_num, mp_ob
 
     mp_get_buffer_raise(buf, &bufinfo, MP_BUFFER_READ);
     sdcard_writeblocks(self, mp_obj_get_int(block_num), bufinfo.buf, bufinfo.len);
+    //errors are handled manually in sdcard_writeblocks ~ if we got this far there was no error
     return mp_const_true;
 }
 
@@ -416,7 +413,7 @@ STATIC mp_obj_t SDObject_ioctl(mp_obj_t self_in, mp_obj_t cmd_obj, mp_obj_t arg_
         case IOCTL_SYNC:
             return MP_OBJ_NEW_SMALL_INT(0); // success
         case IOCTL_BLK_COUNT:
-            return MP_OBJ_NEW_SMALL_INT(self->sectors/1024);
+            return MP_OBJ_NEW_SMALL_INT(self->sectors);
         case IOCTL_BLK_SIZE:
             return MP_OBJ_NEW_SMALL_INT(BLOCK);
         default:
@@ -428,9 +425,11 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(SDObject_ioctl_obj, SDObject_ioctl);
 
 
 STATIC const mp_rom_map_elem_t SDObject_locals_dict_table[] = {
+    /* None of this will ever be reached
     { MP_ROM_QSTR(MP_QSTR_readblocks), MP_ROM_PTR(&SDObject_readblocks_obj) },
     { MP_ROM_QSTR(MP_QSTR_writeblocks), MP_ROM_PTR(&SDObject_writeblocks_obj) },
     { MP_ROM_QSTR(MP_QSTR_ioctl), MP_ROM_PTR(&SDObject_ioctl_obj) },
+    */
 };
 
 STATIC MP_DEFINE_CONST_DICT(SDObject_locals_dict, SDObject_locals_dict_table);
@@ -544,15 +543,16 @@ STATIC mp_obj_t SDCard_make_new(const mp_obj_type_t *type, size_t n_args, size_t
     GET_STR_DATA_LEN(kw[ARG_drive].u_rom_obj, str, str_len);
     self->drive = (const char*)str;
     
-    if (kw[ARG_mount].u_bool == true)
-        SDCard_mount(MP_OBJ_FROM_PTR(self));
+    if (kw[ARG_mount].u_bool == true) SDCard_mount(MP_OBJ_FROM_PTR(self));
     
     return MP_OBJ_FROM_PTR(self);
 }
 
 STATIC const mp_rom_map_elem_t SDCard_locals_dict_table[] = {
+    /* None of this will ever be reached
     { MP_ROM_QSTR(MP_QSTR_mount), MP_ROM_PTR(&SDCard_mount_obj) },
     { MP_ROM_QSTR(MP_QSTR_eject), MP_ROM_PTR(&SDCard_eject_obj) },
+    */
 };
 
 STATIC MP_DEFINE_CONST_DICT(SDCard_locals_dict, SDCard_locals_dict_table);
