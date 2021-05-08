@@ -513,14 +513,14 @@ STATIC mp_obj_t SDCard_make_new(const mp_obj_type_t *type, size_t n_args, size_t
     
     enum {ARG_spi, ARG_sck, ARG_mosi, ARG_miso, ARG_cs, ARG_baudrate, ARG_mount, ARG_drive};
     static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_spi       , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                              }},
-        { MP_QSTR_sck       , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                              }},
-        { MP_QSTR_mosi      , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                              }},
-        { MP_QSTR_miso      , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                              }},
-        { MP_QSTR_cs        , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                              }},
-        { MP_QSTR_baudrate  , MP_ARG_INT                   , {.u_int     = 0x500000                       }},
-        { MP_QSTR_mount     , MP_ARG_BOOL                  , {.u_bool    = true                           }},
-        { MP_QSTR_drive     , MP_ARG_OBJ                   , {.u_rom_obj = MP_ROM_QSTR(MP_QSTR__slash_sd) }},
+        { MP_QSTR_spi       , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
+        { MP_QSTR_sck       , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
+        { MP_QSTR_mosi      , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
+        { MP_QSTR_miso      , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
+        { MP_QSTR_cs        , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
+        { MP_QSTR_baudrate  , MP_ARG_INT                   , {.u_int     = 0x500000                     }},
+        { MP_QSTR_mount     , MP_ARG_BOOL                  , {.u_bool    = true                         }},
+        { MP_QSTR_drive     , MP_ARG_OBJ                   , {.u_obj     = MP_OBJ_NEW_QSTR(MP_QSTR_nul) }},
     };
     
     mp_arg_val_t kw[MP_ARRAY_SIZE(allowed_args)];
@@ -539,9 +539,11 @@ STATIC mp_obj_t SDCard_make_new(const mp_obj_type_t *type, size_t n_args, size_t
     self->sdobject = MP_OBJ_TO_PTR(SDObject_make_new(NULL, 3, 0, sdo_args));
     
     //store drive letter
-    mp_check_self(mp_obj_is_str_or_bytes(kw[ARG_drive].u_rom_obj));
-    GET_STR_DATA_LEN(kw[ARG_drive].u_rom_obj, str, str_len);
-    self->drive = (const char*)str;
+    mp_check_self(mp_obj_is_str_or_bytes(kw[ARG_drive].u_obj));
+    GET_STR_DATA_LEN(kw[ARG_drive].u_obj, str, str_len);
+    
+    if (strcmp((const char*)str, "nul") != 0) self->drive = (const char*)str;
+    else                                      self->drive = (const char*)"/sd";
     
     if (kw[ARG_mount].u_bool == true) SDCard_mount(MP_OBJ_FROM_PTR(self));
     
