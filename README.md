@@ -15,6 +15,9 @@ SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.
 9) main class has been renamed `SDObject`
 10) `SDCard` is now a wrapper for `SDObject` which automatically mounts the card and adds it to `sys.path`
 11) everything has been annotated
+12) ioctl has been fleshed out to include all cmds
+
+**before wrapper, my version of sdcard.py loads at roughly 300 bytes less than the original sdcard.py**
 
 
 ## Ports:
