@@ -1,6 +1,10 @@
 # pico-sd-card
 SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.py` script from [here](https://github.com/micropython/micropython/blob/a1bc32d8a8fbb09bc04c2ca07b10475f7ddde8c3/drivers/sdcard/sdcard.py), but has been expanded to include ports of that script with numerous changes.
 
+**tested with micropython versions:**
+- v1.14-137-g172fb5230-dirty
+- v1.15-88-g7b923d6c7-dirty
+
 
 ## The Original Changes Include:
 
