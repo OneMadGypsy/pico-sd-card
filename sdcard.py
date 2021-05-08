@@ -6,7 +6,6 @@ from machine import Pin, SPI
 
 _BAUD = const(0x500000) #5 Mb ~ can be overwritten in SDCard constructor
 
-
 class SDCard(object):
     @property
     def drive(self)->int:
@@ -21,8 +20,8 @@ class SDCard(object):
         return self.__type
         
     def __init__(self, spi:int, sck:int, mosi:int, miso:int, cs:int, baudrate:int=_BAUD, mount:bool=True, drive:str="/sd") -> None:
-        self.__sd = SDObject(SPI(spi, sck=Pin(sck, Pin.OUT), mosi=Pin(mosi, Pin.OUT), miso=Pin(miso, Pin.OUT)), Pin(cs, Pin.OUT))
-        self.__sd.setup(baudrate) #this had to be split because we can't change the signature of SDObject's constructor
+        self.__sd = SDObject(SPI(spi, sck=Pin(sck, Pin.OUT), mosi=Pin(mosi, Pin.OUT), miso=Pin(miso, Pin.OUT)), Pin(cs, Pin.OUT), baudrate)
+        #self.__sd.setup(baudrate) #this had to be split because we can't change the signature of SDObject's constructor
         
         self.__drive   = drive
         self.__type    = self.__sd.type
@@ -40,7 +39,14 @@ class SDCard(object):
         print('{} Ejected'.format(self.__drive))
         uosumount(self.__drive) 
         syspath.remove(self.__drive)
-        
+ 
+    
+_IOCTL_INIT         = const(1)
+_IOCTL_DEINIT       = const(2)
+_IOCTL_SYNC         = const(3)
+_IOCTL_BLK_COUNT    = const(4)
+_IOCTL_BLK_SIZE     = const(5)
+_IOCTL_BLK_ERASE    = const(6)
 
 _CMD0               = const(0x40)    # CMD0 : init card; should return _IDLE_STATE
 _CMD8               = const(0x48)    # CMD8 : determine card version
@@ -69,12 +75,11 @@ _TOKEN_DATA         = const(0xFE)
 
 
 class SDObject(object):
-    def __init__(self, spi, cs):
+    def __init__(self, spi, cs:int, baudrate:int=_BAUD) -> None:
         self.spi, self.cs = spi, cs
         self.cs.init(self.cs.OUT, value=1)
         self.spi.init(baudrate=100000, phase=0, polarity=0)
         
-    def setup(self, baudrate:int=_BAUD):
         self.tokenbuf = bytearray(1)
         self.buf_mv   = memoryview(bytearray(_BLOCK))
         
@@ -214,6 +219,7 @@ class SDObject(object):
 
     def write_token(self, token:int) -> None:
         self.cs(0)
+        
         self.spi.read(1, token)
         self.spi.write(_FF)
         
@@ -263,6 +269,12 @@ class SDObject(object):
                 
             self.write_token(_TOKEN_STOP_TRAN)
     
-    def ioctl(self, op:int, arg:int=0) -> int:
-        if op == 4:  # get number of blocks
+    def ioctl(self, cmd:int, arg:int=0) -> int:
+        if cmd in (_IOCTL_INIT, _IOCTL_DEINIT, _IOCTL_SYNC):
+            return 0
+        elif cmd == _IOCTL_BLK_COUNT:
             return self.sectors
+        elif cmd == _IOCTL_BLK_SIZE:
+            return _BLOCK
+        else:
+            return -1
