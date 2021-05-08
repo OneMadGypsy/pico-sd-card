@@ -124,7 +124,7 @@ class SDObject(object):
     def init_card_v1(self) -> None:
         for _ in range(_CMD_TIMEOUT):
             self.cmd(_CMD55)
-            if self.cmd(_CMD41) == 0:
+            if not self.cmd(_CMD41):
                 self.cdv  = _BLOCK
                 self.type = '[SDCard v1]'
                 return
@@ -135,7 +135,7 @@ class SDObject(object):
             sleep_ms(50)
             self.cmd(_CMD58, final=4)
             self.cmd(_CMD55)
-            if self.cmd(_CMD41, 0x40 << 32) == 0:
+            if not self.cmd(_CMD41, 0x40 << 32):
                 self.cmd(_CMD58, final=4)
                 self.cdv = 1
                 self.type = '[SDCard v2]'
@@ -225,8 +225,8 @@ class SDObject(object):
         self.spi.write(_FF)
     
     def readblocks(self, block_num:int, buf:bytearray) -> None:
-        nblocks = len(buf) // _BLOCK
-        assert nblocks and not len(buf) % _BLOCK, "Invalid Buffer Length"
+        nblocks, err = divmod(len(buf), _BLOCK)
+        assert nblocks and not err, "Invalid Buffer Length"
         if nblocks == 1:
             if self.cmd(_CMD17, int(block_num * self.cdv) << 8, release=False):
                 self.cs(1)
