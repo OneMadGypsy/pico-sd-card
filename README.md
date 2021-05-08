@@ -57,6 +57,25 @@ test.Test()
 #eject card
 sd.eject()
 ```
+
+The sdcard can be mounted manually, as so:
+```python
+import sdcard
+
+#init sd card
+sd  = sdcard.SDCard(spi=1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20, mount=False, drive='/sd')
+sd.mount()
+```
+
+It also has 3 properties
+```python
+import sdcard
+
+#init sd card
+sd  = sdcard.SDCard(spi=1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20)
+print('drive {}, size {}, type {}'.format(sd.drive, sd.sectors/2048, sd.type))
+
+```
 - - - - 
 
 ## Tips:
