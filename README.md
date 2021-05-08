@@ -41,15 +41,15 @@ SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.
 
 `make USER_C_MODULES=/path/to/modules/micropython.cmake all`
 
-## Test:
+## Usage:
 
-You can run scripts directly from the SD card. The below example will write, import and run a simple test script from the SD card. Note that `mount=True` and `drive='/sd'` are actually the defaults and it is unnecessary to define them if those are the values you want. I included them in the script below solely to give a complete example of the constructor arguments. Also note that this script has `baudrate` set to 20 Mbaud, which may be way too fast for your card. If you don't set `baudrate` it defaults to 5 Mbaud, which **should** be slow enough for even the slowest cards. Of course you can set the number to whatever you want til you find a speed that works, for you. It goes without saying that you will have to redefine the `SPI` pins to reflect the ones you are actually using. The below script reflects a basic `SPI1` setup. If you are unsure of your options you can use this [pinout](https://hackaday.com/wp-content/uploads/2021/01/pico_pinout.png) as a reference.
+The first example below will write, import and run a simple test script from the SD card. Note that `mount=True` and `drive='/sd'` are actually the defaults and it is unnecessary to define them if those are the values you want. Also note that this script has `baudrate` set to 20 Mbaud, which may be way too fast for your card. If you don't set `baudrate` it defaults to 5 Mbaud, which **should** be slow enough for even the slowest cards. Of course you can set the number to whatever you want til you find a speed that works, for you. It goes without saying that you will have to redefine the `SPI` pins to reflect the ones you are actually using. The below script reflects a basic `SPI1` setup. If you are unsure of your options you can use this [pinout](https://hackaday.com/wp-content/uploads/2021/01/pico_pinout.png) as a reference.
 
 ```python
 import sdcard
 
 #init sd card
-sd  = sdcard.SDCard(spi=1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20, mount=True, drive='/sd')
+sd = sdcard.SDCard(spi=1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20, mount=True, drive='/sd')
 
 #write a script to the card
 with open("{}/test.py".format(sd.drive), 'w') as f:
@@ -70,10 +70,17 @@ The SD card can be mounted/ejected manually, and has 3 properties:
 import sdcard
 
 #init sd card
-sd  = sdcard.SDCard(spi=1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20, mount=False, drive='/sd')
+sd = sdcard.SDCard(spi=1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20, mount=False, drive='/sd')
 sd.mount()
 print('drive {}, size {}, type {}'.format(sd.drive, sd.sectors/2048, sd.type))
 sd.eject()
+```
+The constructor accepts positional or keyword arguments. Below illustrates the bare minimum call to fully instantiate the reader. This will automatically mount the card at 5 Mbaud as drive '/sd':
+```python
+from sdcard import SDCard as SD
+
+#init sd card
+sd = SD(1, 10, 11, 8, 9)
 ```
 - - - - 
 
