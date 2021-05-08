@@ -21,7 +21,6 @@ class SDCard(object):
         
     def __init__(self, spi:int, sck:int, mosi:int, miso:int, cs:int, baudrate:int=_BAUD, mount:bool=True, drive:str="/sd") -> None:
         self.__sd = SDObject(SPI(spi, sck=Pin(sck, Pin.OUT), mosi=Pin(mosi, Pin.OUT), miso=Pin(miso, Pin.OUT)), Pin(cs, Pin.OUT), baudrate)
-        #self.__sd.setup(baudrate) #this had to be split because we can't change the signature of SDObject's constructor
         
         self.__drive   = drive
         self.__type    = self.__sd.type
