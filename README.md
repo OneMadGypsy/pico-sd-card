@@ -6,7 +6,7 @@ SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.
 - v1.15-88-g7b923d6c7-dirty
 
 
-## The Original Changes Include:
+## Original sdcard.py Changes Include:
 
 1) numerous unnecessary variables have been removed
 2) `while` loops have been replaced with `range` loops where possible
