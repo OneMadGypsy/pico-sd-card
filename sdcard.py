@@ -80,7 +80,7 @@ class SDObject(object):
         self.spi.init(baudrate=100000, phase=0, polarity=0)
         
         self.tokenbuf = bytearray(1)
-        self.buf_mv   = memoryview(bytearray(_BLOCK))
+        self.buf_mv   = memoryview(bytearray([0xFF]*_BLOCK))
         
         self.type     = None
         
