@@ -33,7 +33,7 @@ _To discus features, bugs or share your own project that utilize code in this re
 
 ## Ports:
 
-**All 3 ports have an identicaal interface from the front-end.**
+**All 3 ports have an identical interface from the front-end.**
 
 ### sdcard.py
 >This is intended to be used as a frozen module. For information regarding how to setup the sdk and freeze a module you can refer to [this post](https://www.raspberrypi.org/forums/viewtopic.php?f=146&t=306449#p1862108) on the Raspberry Pi forum.
