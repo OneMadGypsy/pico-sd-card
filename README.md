@@ -185,7 +185,8 @@ sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=F
 
 sd.setup(wait=True)
 
-# this line represents your operations once a card is inserted and detected if wait is True this will not be reached until a card is inserted
+# this line represents your operations once a card is inserted and detected 
+# if wait is True this will not be reached until a card is inserted
 ```
 <br />
 
