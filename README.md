@@ -192,7 +192,7 @@ sd.setup(wait=True)
 
 **loading external scripts**
 
-When a card has been successfully connected and mounted it is also automatically added to the system path. Below is a simple example of running a `pyhon`script from the sdcard. So the test is easy to perform, this will write a simple script to the sdcard first.
+When a card has been successfully connected and mounted it is also automatically added to the system path. Below is a simple example of running a `pyhon` script from the sdcard. So the test is easy to perform, this will write a simple script to the sdcard first.
 ```python
 import sdcard
 
