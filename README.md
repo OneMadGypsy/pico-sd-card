@@ -1,5 +1,5 @@
 # pico-sd-card
-SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.py` script from [here](https://github.com/micropython/micropython/blob/a1bc32d8a8fbb09bc04c2ca07b10475f7ddde8c3/drivers/sdcard/sdcard.py), but has been expanded to include ports of that script with numerous changes. Even though this repo is titled **pico-sd-card** these scripts should work with every device the original script worked with, except `pyboard`. `pyboard` was taken out because it was the only device that had special exceptions. I made an executive decision that I don't want exceptions in my code that only 1 board needs.
+SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.py` script from [here](https://github.com/micropython/micropython/blob/a1bc32d8a8fbb09bc04c2ca07b10475f7ddde8c3/drivers/sdcard/sdcard.py), but has been expanded to include ports of that script with numerous changes. Even though this repo is titled **pico-sd-card** these scripts should work with every device the original script worked with, except PyBoard. PyBoard was taken out because it was the only device that had special exceptions. I made an executive decision that I don't want exceptions in my code that only 1 board needs.
 
 **tested with micropython versions:**
 - v1.14-137-g172fb5230-dirty
