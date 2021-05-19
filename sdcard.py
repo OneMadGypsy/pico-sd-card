@@ -38,7 +38,9 @@ class SDCard(object):
         self.setup(automount, wait)
         
     def __waiting(self, wait:bool=False) -> bool:
-        return not ((self.__detect is None or self.__detect.value()) and (not self.__conn) and wait)
+        if wait:
+            return not (self.__detect is None or self.__detect.value()) and (not self.__conn)
+        return False
             
     def setup(self, automount:bool=True, wait:bool=False) -> None:
         while self.__waiting(wait):
