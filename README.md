@@ -74,10 +74,10 @@ _To discus features, bugs or share your own project that utilize code in this re
 | Args          | Type | Description                                                    | Default     |
 | ------------- |------|----------------------------------------------------------------|-------------|
 | **spi**       | int  | which SPI to use (0 or 1)                                      | **REQUIRED**|
-| **sck**       | int  | the SPI clock pin id                                           | **REQUIRED**|
-| **mosi**      | int  | the SPI mosi pin id                                            | **REQUIRED**|
-| **miso**      | int  | the SPI miso pin id                                            | **REQUIRED**|
-| **cs**        | int  | the SPI chip select pin id                                     | **REQUIRED**|
+| **sck**       | int  | SPI clock pin id                                               | **REQUIRED**|
+| **mosi**      | int  | SPI mosi pin id                                                | **REQUIRED**|
+| **miso**      | int  | SPI miso pin id                                                | **REQUIRED**|
+| **cs**        | int  | SPI chip select pin id                                         | **REQUIRED**|
 | **baudrate**  | int  | the desired speed to read/write                                | 5mhz        |
 | **automount** | bool | whether to automatically mount the drive                       | True        |
 | **drive**     | str  | drive-name to represent the drive                              | "/sd"       |
