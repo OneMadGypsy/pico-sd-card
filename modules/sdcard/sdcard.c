@@ -545,7 +545,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(SDCard_eject_obj, SDCard_eject);
 
 STATIC bool sdcard_waiting(sdcard_SDCard_obj_t *self, bool wait) {
     if (wait)
-        return !((self->detect == -1 || (self->detect > -1 && gpio_get(self->detect))) && (!self->conn));
+        return !(self->detect == -1 || (self->detect > -1 && gpio_get(self->detect)));
         
     return false;
 }
@@ -564,26 +564,29 @@ STATIC mp_obj_t SDCard_setup(mp_uint_t n_args, const mp_obj_t *args, mp_map_t *k
     
     sdcard_SDCard_obj_t *self = MP_OBJ_TO_PTR(kw[ARG_self].u_obj);
     
-    while (sdcard_waiting(self, kw[ARG_wait].u_bool))
-        sleep_ms(500);
-        
-    sleep_ms(300);  //an extra little wait to make sure the sdcard is fully seated before connecting
-    if ((self->detect < 0 || (self->detect > -1 && gpio_get(self->detect))) && !self->conn) {
-        gpio_set_function(self->sck , GPIO_FUNC_SPI);
-        gpio_set_function(self->mosi, GPIO_FUNC_SPI);
-        gpio_set_function(self->miso, GPIO_FUNC_SPI);
+    if (!self->conn) {
     
-        mp_obj_t sdo_args[4];
-        sdo_args[0]    = self->spi;
-        sdo_args[1]    = self->cs;
-        sdo_args[2]    = self->baud;
-        sdo_args[3]    = self->led;
-        self->sdobject = MP_OBJ_TO_PTR(SDObject_make_new(NULL, 4, 0, sdo_args));
-        self->conn     = true;
-    
-        if (kw[ARG_automount].u_bool) SDCard_mount(self);
+        while (sdcard_waiting(self, kw[ARG_wait].u_bool))
+            sleep_ms(500);
         
-    } else mp_printf(MP_PYTHON_PRINTER, "No SD Card Detected\n");
+        sleep_ms(300);  //an extra little wait to make sure the sdcard is fully seated before connecting
+        if ((self->detect == -1 || (self->detect > -1 && gpio_get(self->detect))) && !self->conn) {
+            gpio_set_function(self->sck , GPIO_FUNC_SPI);
+            gpio_set_function(self->mosi, GPIO_FUNC_SPI);
+            gpio_set_function(self->miso, GPIO_FUNC_SPI);
+        
+            mp_obj_t sdo_args[4];
+            sdo_args[0]    = self->spi;
+            sdo_args[1]    = self->cs;
+            sdo_args[2]    = self->baud;
+            sdo_args[3]    = self->led;
+            self->sdobject = MP_OBJ_TO_PTR(SDObject_make_new(NULL, 4, 0, sdo_args));
+            self->conn     = true;
+        
+            if (kw[ARG_automount].u_bool) SDCard_mount(self);
+            
+        } else mp_printf(MP_PYTHON_PRINTER, "No SD Card Detected\n");
+    }
         
     return mp_const_none;
 }
