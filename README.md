@@ -217,7 +217,7 @@ test.Test()
 ## Tips:
 
 
-### 5v Voltage Regulated Cards
+### 5v Voltage Regulated Card Readers
 
 If you have a card reader that automatically converts 5v to 3.3v, apparently the `miso` line will output 5v to the Pico, which is not tolerant of 5v. A solution to this is to completely remove the level shifter from the card and short `Vin` to `Vout` where the level shifter was (as illustrated below). This will allow you to connect the reader directly to 3.3v.
 
