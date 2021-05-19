@@ -544,7 +544,10 @@ STATIC mp_obj_t SDCard_eject(mp_obj_t self_in) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(SDCard_eject_obj, SDCard_eject);
 
 STATIC bool sdcard_waiting(sdcard_SDCard_obj_t *self, bool wait) {
-    return !((self->detect < 0 || (self->detect > -1 && gpio_get(self->detect))) && (!self->conn) && wait);
+    if (wait)
+        return !((self->detect == -1 || (self->detect > -1 && gpio_get(self->detect))) && (!self->conn));
+        
+    return false;
 }
 
 //__> SETUP ____________________________________________________________
