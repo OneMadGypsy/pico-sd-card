@@ -11,9 +11,13 @@ _To officially file a bug report or feature request you can use these templates:
 
 _To discus features, bugs or share your own project that utilize code in this repo:_   [join the discussion](https://github.com/OneMadGypsy/pico-sd-card/discussions/3)
 
+<br />
+
 - - - - 
 
-## sdcard.py Changes Include:
+<br />
+
+## Changes:
 
 1) numerous unnecessary variables have been removed
 2) `while` loops have been replaced with `range` loops where possible
@@ -31,11 +35,13 @@ _To discus features, bugs or share your own project that utilize code in this re
 14) indicator LED option
 15) detection pin option
 16) wait for `SDCard` detection option
+
 <br />
 
 -------
 
 <br />
+
 ## Ports:
 
 **All 3 ports have an identical interface from the front-end.**
@@ -53,9 +59,12 @@ _To discus features, bugs or share your own project that utilize code in this re
 
 `make USER_C_MODULES=/path/to/modules/micropython.cmake all`
 
+<br />
+
 -------
 
 <br />
+
 ## Docs:
 
 
@@ -113,22 +122,28 @@ _To discus features, bugs or share your own project that utilize code in this re
 
 <br />
 
-
 ------
+
+<br />
 
 ## Usage:
 >*The below scripts reflect a basic `SPI1` setup. The pin ids you use will depend on the pins your card is connected to. If you are unsure of your options, you can use this [pinout](https://hackaday.com/wp-content/uploads/2021/01/pico_pinout.png) as a reference.*
 
+<br />
 
-#### basic
+**basic**
+
+
 This is an example of the absolute bare minimum it takes to connect and mount an sdcard. All omitted arguments will default to the values in the above table.
 ```python
 import sdcard
 
 sd = sdcard.SDCard(1, 10, 11, 8, 9)
 ```
+<br />
 
-#### detection and waiting
+**detection and waiting**
+
 In this example we use a `baudrate` of 16mhz, and the on-board LED. It is implied that our sdcard reader has a `detect` feature and it is connected to `pin 15`. Since `wait` is `True` the script will sit in an infinite loop waiting for an sdcard to be inserted (if one is not already), and will automatically connect once one is. Then our `json` file will load. This feature may be handy if it is mandatory for an sdcard to be inserted in order for the system to proceed. In this case, it is implied that our system depends on log information.
 ```python
 import sdcard, ujson
@@ -137,8 +152,10 @@ sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=T
 
 log = ujson.load(open("{}/log.json".format(sd.drive), 'r')
 ```
+<br />
 
-#### mount()/eject()
+**mount()/eject()**
+
 You can turn off `automount`, and `mount` the sdcard manually at a later time. You can also `eject` the sdcard whenever you like. Conditions are in place that wont run the `mount` feature if the sdcard is already mounted, and wont run the `eject` feature if the card is already ejected.
 ```python
 import sdcard, ujson
@@ -153,9 +170,11 @@ sd.mount()
 
 sd.eject()
 ```
+<br />
 
-#### setup(`automount`, `wait`)
-If you use the `detect` option, do not `wait`, and did not have an sdcard inserted, you can manually call the card setup at a later time to establish a connection. YOu can also designate whether you want to `automount` the card and/or `wait` for a card to be inserted.
+**setup(`automount`, `wait`)**
+
+If you use the `detect` option, did not `wait`, and did not have an sdcard inserted, you can manually call the card setup at a later time to establish a connection. You can also designate whether you want to `automount` the card and/or `wait` for a card to be inserted.
 ```python
 import sdcard
 
@@ -168,9 +187,11 @@ sd.setup(wait=True)
 
 # this line represents your operations once a card is inserted and detected
 ```
+<br />
 
-#### loading external scripts
-When a card has been successfully connected and mounted it is also automatically added to the system path. Below is a simple example of running a `pyhon`script from the sdcard. So the test is easy to perform, this will write a simple script to the sdcard first
+**loading external scripts**
+
+When a card has been successfully connected and mounted it is also automatically added to the system path. Below is a simple example of running a `pyhon`script from the sdcard. So the test is easy to perform, this will write a simple script to the sdcard first.
 ```python
 import sdcard
 
@@ -186,8 +207,11 @@ test = __import__('test', globals(), locals(), ['Test'], 0)
 #call it's class
 test.Test()
 ```
+<br />
 
 - - - - 
+
+<br />
 
 ## Tips:
 
