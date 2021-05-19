@@ -13,7 +13,7 @@ _To discus features, bugs or share your own project that utilize code in this re
 
 - - - - 
 
-## Original sdcard.py Changes Include:
+## sdcard.py Changes Include:
 
 1) numerous unnecessary variables have been removed
 2) `while` loops have been replaced with `range` loops where possible
@@ -24,19 +24,24 @@ _To discus features, bugs or share your own project that utilize code in this re
 7) support for pyboard was removed
 8) imports have been made more specific
 9) main class has been renamed `SDObject`
-10) `SDCard` is now a wrapper for `SDObject` which automatically mounts the card and adds it to `sys.path`
-11) everything has been annotated
+10) everything has been annotated
+11) `SDCard` is now a wrapper for `SDObject`
 12) ioctl has been fleshed out to include all cmds
+13) automatically mount the `SDCard` and add it to `sys.path` option
+14) indicator LED option
+15) detection pin option
+16) wait for `SDCard` detection option
+<br />
 
-**before wrapper, my version of sdcard.py loads at roughly 300 bytes less than the original sdcard.py**
+-------
 
-
+<br />
 ## Ports:
 
 **All 3 ports have an identical interface from the front-end.**
 
 ### sdcard.py
->This is intended to be used as a frozen module. For information regarding how to setup the sdk and freeze a module you can refer to [this post](https://www.raspberrypi.org/forums/viewtopic.php?f=146&t=306449#p1862108) on the Raspberry Pi forum.
+>This can be uploaded directly to the board, but is intended to be used as a frozen module. For information regarding how to setup the sdk and freeze a module you can refer to [this post](https://www.raspberrypi.org/forums/viewtopic.php?f=146&t=306449#p1862108) on the Raspberry Pi forum.
 
 
 ### sdcard.mpy
@@ -48,17 +53,130 @@ _To discus features, bugs or share your own project that utilize code in this re
 
 `make USER_C_MODULES=/path/to/modules/micropython.cmake all`
 
+-------
+
+<br />
+## Docs:
+
+
+**SDCard(`spi`, `sck`, `mosi`, `miso`, `cs`, `baudrate`, `automount`, `drive`, `led`, `detect`, `wait`)**
+> Main SDCard interface
+
+| Args          | Type | Description                                                    | Default     |
+| ------------- |------|----------------------------------------------------------------|-------------|
+| **spi**       | int  | which SPI to use (0 or 1)                                      | **REQUIRED**|
+| **sck**       | int  | the SPI clock pin id                                           | **REQUIRED**|
+| **mosi**      | int  | the SPI mosi pin id                                            | **REQUIRED**|
+| **miso**      | int  | the SPI miso pin id                                            | **REQUIRED**|
+| **cs**        | int  | the SPI chip select pin id                                     | **REQUIRED**|
+| **baudrate**  | int  | the desired speed to read/write                                | 5mhz        |
+| **automount** | bool | whether to automatically mount the drive                       | True        |
+| **drive**     | str  | drive-name to represent the drive                              | "/sd"       |
+| **led**       | int  | pin id for a connected LED. LED is on during read/write        | -1 (no pin) |
+| **detect**    | int  | pin id for a detect feature                                    | -1 (no pin) |
+| **wait**      | bool | whether to wait for card insertion. Used with detect (blocks)  | False       |
+
+<br />
+
+**.setup(`automount`, `wait`)**
+> Manual setup option for use with the `detect` option. This is done automatically if a card was present or `wait` was `True` when `SDCard` was instantiated 
+
+| Args          | Type | Description                                                    | Default     |
+| ------------- |------|----------------------------------------------------------------|-------------|
+| **automount** | bool | whether to automatically mount the drive                       | True        |
+| **wait**      | bool | whether to wait for card insertion. Used with detect (blocks)  | False       |
+
+<br />
+
+**.mount()**
+> Manually mount a card. If a card is already mounted nothing happens.
+
+<br />
+
+**.eject()**
+> Eject a mounted card. If no card is mounted nothing happens.
+
+<br />
+
+**.type**
+> Returns the type of sdcard that is inserted (ver. 1 or ver. 2)
+
+<br />
+
+**.sectors**
+> Returns the number of sectors on the insterted sdcard. Divide by 2048 to get volume size in mb.
+
+<br />
+
+**.drive**
+> Returns the drive letter that is assigned to the card.
+
+<br />
+
+
+------
+
 ## Usage:
+>*The below scripts reflect a basic `SPI1` setup. The pin ids you use will depend on the pins your card is connected to. If you are unsure of your options, you can use this [pinout](https://hackaday.com/wp-content/uploads/2021/01/pico_pinout.png) as a reference.*
 
-The first example below will write, import and run a simple test script from the SD card. Note that `mount=True` and `drive='/sd'` are actually the defaults and it is unnecessary to define them if those are the values you want. Also note that this script has `baudrate` set to 20 Mbaud, which may be way too fast for your card. If you don't set `baudrate` it defaults to 5 Mbaud, which **should** be slow enough for even the slowest cards. Of course you can set the number to whatever you want til you find a speed that works, for you. It goes without saying that you will have to redefine the `SPI` pins to reflect the ones you are actually using. The below script reflects a basic `SPI1` setup. If you are unsure of your options you can use this [pinout](https://hackaday.com/wp-content/uploads/2021/01/pico_pinout.png) as a reference.
 
+#### basic
+This is an example of the absolute bare minimum it takes to connect and mount an sdcard. All omitted arguments will default to the values in the above table.
+```python
+import sdcard
+
+sd = sdcard.SDCard(1, 10, 11, 8, 9)
+```
+
+#### detection and waiting
+In this example we use a `baudrate` of 16mhz, and the on-board LED. It is implied that our sdcard reader has a `detect` feature and it is connected to `pin 15`. Since `wait` is `True` the script will sit in an infinite loop waiting for an sdcard to be inserted (if one is not already), and will automatically connect once one is. Then our `json` file will load. This feature may be handy if it is mandatory for an sdcard to be inserted in order for the system to proceed. In this case, it is implied that our system depends on log information.
+```python
+import sdcard, ujson
+
+sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=True)
+
+log = ujson.load(open("{}/log.json".format(sd.drive), 'r')
+```
+
+#### mount()/eject()
+You can turn off `automount`, and `mount` the sdcard manually at a later time. You can also `eject` the sdcard whenever you like. Conditions are in place that wont run the `mount` feature if the sdcard is already mounted, and wont run the `eject` feature if the card is already ejected.
+```python
+import sdcard, ujson
+
+sd = sdcard.SDCard(1, 10, 11, 8, 9, mount=False)
+
+# this line represents your operations between initializing and mountiing the sdcard
+
+sd.mount()
+
+#this line represents gathering data from the sdcard
+
+sd.eject()
+```
+
+#### setup(`automount`, `wait`)
+If you use the `detect` option, do not `wait`, and did not have an sdcard inserted, you can manually call the card setup at a later time to establish a connection. YOu can also designate whether you want to `automount` the card and/or `wait` for a card to be inserted.
 ```python
 import sdcard
 
 #init sd card
-sd = sdcard.SDCard(spi=1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20, mount=True, drive='/sd')
+sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=False)
 
-#write a script to the card
+# this line represents your operations between instantiating and initializing the sdcard
+
+sd.setup(wait=True)
+
+# this line represents your operations once a card is inserted and detected
+```
+
+#### loading external scripts
+When a card has been successfully connected and mounted it is also automatically added to the system path. Below is a simple example of running a `pyhon`script from the sdcard. So the test is easy to perform, this will write a simple script to the sdcard first
+```python
+import sdcard
+
+sd = sdcard.SDCard(1, 10, 11, 8, 9)
+
+#write a simple test script to the card
 with open("{}/test.py".format(sd.drive), 'w') as f:
     f.write('class Test(object):\n\tdef __init__(self):\n\t\tprint("Hello From SD Card")')
 
@@ -67,28 +185,8 @@ test = __import__('test', globals(), locals(), ['Test'], 0)
 
 #call it's class
 test.Test()
-
-#eject card
-sd.eject()
 ```
 
-The SD card can be mounted/ejected manually, and has 3 properties:
-```python
-import sdcard
-
-#init sd card
-sd = sdcard.SDCard(spi=1, sck=10, mosi=11, miso=8, cs=9, baudrate=0x14<<20, mount=False, drive='/sd')
-sd.mount()
-print('drive {}, size {}, type {}'.format(sd.drive, sd.sectors/2048, sd.type))
-sd.eject()
-```
-The constructor accepts positional or keyword arguments. Below illustrates the bare minimum call to fully instantiate the reader. This will automatically mount the card at 5 Mbaud as drive '/sd':
-```python
-from sdcard import SDCard as SD
-
-#init sd card
-sd = SD(1, 10, 11, 8, 9)
-```
 - - - - 
 
 ## Tips:
