@@ -1,12 +1,14 @@
 #include "py/runtime.h"
 #include "py/obj.h"
 #include "py/objstr.h"
+#include "py/objint.h"
 #include "pico/time.h"
 #include "hardware/spi.h"
 #include "hardware/gpio.h"
 #include "extmod/vfs.h"
 #include <math.h>
 #include <string.h>
+
 
 #define SPI_BAUDRATE    (100000) //this is only the initialization baudrate
 #define SPI_POLARITY    (0)
@@ -52,6 +54,7 @@
 #define TOKEN_DATA      (0xFE)
 
 
+
 //__> BUFFER SLICE _________________________________________________________________
 typedef struct{ 
     uint8_t buff[BLOCK];
@@ -90,6 +93,7 @@ typedef struct _sdcard_SDObject_obj_t {
     uint32_t  baudrate;
     uint8_t   cs;
     uint16_t  cdv;
+    uint8_t   led;
 } sdcard_SDObject_obj_t;
 
 STATIC void SDObject_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
@@ -101,13 +105,15 @@ STATIC void SDObject_print(const mp_print_t *print, mp_obj_t self_in, mp_print_k
 //used for defaulting cmd arguments
 typedef struct {
     sdcard_SDObject_obj_t *self; 
-    uint8_t cmd; 
+    uint8_t  cmd; 
     uint32_t arg; 
-    uint8_t crc;
-    uint8_t final; 
-    bool hold; 
-    bool skip;
+    uint8_t  crc;
+    uint8_t  final; 
+    bool     hold; 
+    bool     skip;
 } cmd_args;
+
+ 
 
 //actual cmd logic
 STATIC int sdcard_cmd_base(sdcard_SDObject_obj_t *self, uint8_t cmd, uint32_t arg, uint8_t crc, uint8_t final, bool hold, bool skip) {
@@ -250,16 +256,18 @@ STATIC void sdcard_write(sdcard_SDObject_obj_t *self, uint8_t token, uint8_t *bu
         spi_write_blocking(self->spi, FF, 1);
 }
 
+
 STATIC mp_obj_t SDObject_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    mp_arg_check_num(n_args, n_kw, 0, 3, true);
+    mp_arg_check_num(n_args, n_kw, 0, 4, true);
     sdcard_SDObject_obj_t *self = m_new_obj(sdcard_SDObject_obj_t);
     self->base.type = &sdcard_SDObject_type;
     
-    enum {ARG_spi, ARG_cs, ARG_baudrate};
+    enum {ARG_spi, ARG_cs, ARG_baudrate, ARG_led};
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_spi       , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0       }},
         { MP_QSTR_cs        , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0       }},
         { MP_QSTR_baudrate  , MP_ARG_INT                   , {.u_int     = 0x500000}}, //5 mb
+        { MP_QSTR_led       , MP_ARG_INT                   , {.u_int     = -1      }},
     }; 
     
     mp_arg_val_t kw[MP_ARRAY_SIZE(allowed_args)];
@@ -271,13 +279,20 @@ STATIC mp_obj_t SDObject_make_new(const mp_obj_type_t *type, size_t n_args, size
     spi_set_format(self->spi, SPI_BITS, SPI_POLARITY, SPI_PHASE, SPI_FIRSTBIT);
     
     self->token[0] = 0x00;
-    for(int i=0; i<BLOCK; i++) self->buffer[i] = 0xFF;
+    for(int i=0; i<BLOCK; i++) self->buffer[i] = 0xFF;     
 
     //setup chip-select pin
     self->cs  = kw[ARG_cs].u_int;
     gpio_set_function(self->cs, GPIO_FUNC_SIO);
     gpio_set_dir(self->cs, GPIO_OUT);
     gpio_put(self->cs, 1);
+    
+    self->led = kw[ARG_led].u_int;
+    if (self->led > -1) {
+        gpio_set_function(self->led, GPIO_FUNC_SIO); 
+        gpio_set_dir(self->led, GPIO_OUT);
+        gpio_put(self->led, 0);
+    }
     
     for(int i=0; i < 16; i++) spi_write_blocking(self->spi, FF, 1);
     
@@ -319,6 +334,10 @@ STATIC mp_obj_t SDObject_make_new(const mp_obj_type_t *type, size_t n_args, size
     return MP_OBJ_FROM_PTR(self);
 }
 
+STATIC void sdcard_indicate(sdcard_SDObject_obj_t *self, bool on) {
+    if (self->led > -1) gpio_put(self->led, on);
+}
+
 
 //__> READ BLOCKS _____________________________________________________________________________________
 STATIC void sdcard_readblocks(sdcard_SDObject_obj_t *self, int blocknum, uint8_t *buf, int len) {
@@ -354,9 +373,12 @@ STATIC void sdcard_readblocks(sdcard_SDObject_obj_t *self, int blocknum, uint8_t
 STATIC mp_obj_t SDObject_readblocks(mp_obj_t self_in, mp_obj_t block_num, mp_obj_t buf) {
     sdcard_SDObject_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_buffer_info_t bufinfo;
-
+    sdcard_indicate(self, true);
+    
     mp_get_buffer_raise(buf, &bufinfo, MP_BUFFER_WRITE);
     sdcard_readblocks(self, mp_obj_get_int(block_num), bufinfo.buf, bufinfo.len);
+    
+    sdcard_indicate(self, false);
     //errors are handled manually in sdcard_readblocks ~ if we got this far there was no error
     return mp_const_true;
 }
@@ -392,9 +414,12 @@ STATIC void sdcard_writeblocks(sdcard_SDObject_obj_t *self, int blocknum, uint8_
 STATIC mp_obj_t SDObject_writeblocks(mp_obj_t self_in, mp_obj_t block_num, mp_obj_t buf) {
     sdcard_SDObject_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_buffer_info_t bufinfo;
+    sdcard_indicate(self, true);
 
     mp_get_buffer_raise(buf, &bufinfo, MP_BUFFER_READ);
     sdcard_writeblocks(self, mp_obj_get_int(block_num), bufinfo.buf, bufinfo.len);
+    
+    sdcard_indicate(self, false);
     //errors are handled manually in sdcard_writeblocks ~ if we got this far there was no error
     return mp_const_true;
 }
@@ -468,10 +493,21 @@ const mp_obj_type_t sdcard_SDCard_type;
 
 typedef struct _sdcard_SDCard_obj_t {
     mp_obj_base_t base;
-    const char *drive;
+    mp_obj_t      spi;
+    mp_obj_t      cs;
+    mp_obj_t      baud;
+    mp_obj_t      led;
+    bool          conn;
+    bool          mounted;
+    uint8_t       detect;
+    uint8_t       mosi;
+    uint8_t       miso;
+    uint8_t       sck;
+    const char   *drive;
     sdcard_SDObject_obj_t *sdobject;
 } sdcard_SDCard_obj_t;
 
+//__> PRINT ___________________________________________________________
 STATIC void SDCard_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)kind; (void)self_in;
     sdcard_SDCard_obj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -488,6 +524,7 @@ STATIC mp_obj_t SDCard_mount(mp_obj_t self_in) {
     mp_vfs_mount(2, mnt_args, (mp_map_t *)&mp_const_empty_map);
     mp_obj_list_append(mp_sys_path, d);
     mp_printf(MP_PYTHON_PRINTER, "%s Mounted\n", self->drive);
+    self->mounted = true;
     return mp_const_none;
 }
 
@@ -500,18 +537,63 @@ STATIC mp_obj_t SDCard_eject(mp_obj_t self_in) {
     mp_vfs_umount(d);
     mp_obj_list_remove(mp_sys_path, d);
     mp_printf(MP_PYTHON_PRINTER, "%s Ejected\n", self->drive);
+    self->mounted = false;
     return mp_const_none;
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(SDCard_eject_obj, SDCard_eject);
 
+STATIC bool sdcard_waiting(sdcard_SDCard_obj_t *self, bool wait) {
+    return !((self->detect < 0 || (self->detect > -1 && gpio_get(self->detect))) && (!self->conn) && wait);
+}
 
+//__> SETUP ____________________________________________________________
+STATIC mp_obj_t SDCard_setup(mp_uint_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    enum {ARG_self, ARG_automount, ARG_wait};
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_self      , MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj  = MP_ROM_NONE}},
+        { MP_QSTR_automount , MP_ARG_BOOL                 , {.u_bool = true       }},
+        { MP_QSTR_wait      , MP_ARG_BOOL                 , {.u_bool = false      }},
+    };
+    
+    mp_arg_val_t kw[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, kw);
+    
+    sdcard_SDCard_obj_t *self = MP_OBJ_TO_PTR(kw[ARG_self].u_obj);
+    
+    while (sdcard_waiting(self, kw[ARG_wait].u_bool))
+        sleep_ms(500);
+        
+    sleep_ms(300);  //an extra little wait to make sure the sdcard is fully seated before connecting
+    if ((self->detect < 0 || (self->detect > -1 && gpio_get(self->detect))) && !self->conn) {
+        gpio_set_function(self->sck , GPIO_FUNC_SPI);
+        gpio_set_function(self->mosi, GPIO_FUNC_SPI);
+        gpio_set_function(self->miso, GPIO_FUNC_SPI);
+    
+        mp_obj_t sdo_args[4];
+        sdo_args[0]    = self->spi;
+        sdo_args[1]    = self->cs;
+        sdo_args[2]    = self->baud;
+        sdo_args[3]    = self->led;
+        self->sdobject = MP_OBJ_TO_PTR(SDObject_make_new(NULL, 4, 0, sdo_args));
+        self->conn     = true;
+    
+        if (kw[ARG_automount].u_bool) SDCard_mount(self);
+        
+    } else mp_printf(MP_PYTHON_PRINTER, "No SD Card Detected\n");
+        
+    return mp_const_none;
+}
+
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(SDCard_setup_obj, 0, SDCard_setup);
+
+//__> INIT ______________________________________________________________
 STATIC mp_obj_t SDCard_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    mp_arg_check_num(n_args, n_kw, 0, 8, true);
+    mp_arg_check_num(n_args, n_kw, 0, 11, true);
     sdcard_SDCard_obj_t *self = m_new_obj(sdcard_SDCard_obj_t);
     self->base.type = &sdcard_SDCard_type;
     
-    enum {ARG_spi, ARG_sck, ARG_mosi, ARG_miso, ARG_cs, ARG_baudrate, ARG_mount, ARG_drive};
+    enum {ARG_spi, ARG_sck, ARG_mosi, ARG_miso, ARG_cs, ARG_baudrate, ARG_automount, ARG_drive, ARG_led, ARG_detect, ARG_wait};
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_spi       , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
         { MP_QSTR_sck       , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
@@ -519,33 +601,43 @@ STATIC mp_obj_t SDCard_make_new(const mp_obj_type_t *type, size_t n_args, size_t
         { MP_QSTR_miso      , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
         { MP_QSTR_cs        , MP_ARG_REQUIRED | MP_ARG_INT , {.u_int     = 0                            }},
         { MP_QSTR_baudrate  , MP_ARG_INT                   , {.u_int     = 0x500000                     }},
-        { MP_QSTR_mount     , MP_ARG_BOOL                  , {.u_bool    = true                         }},
+        { MP_QSTR_automount , MP_ARG_BOOL                  , {.u_bool    = true                         }},
         { MP_QSTR_drive     , MP_ARG_OBJ                   , {.u_obj     = MP_OBJ_NEW_QSTR(MP_QSTR_nul) }},
+        { MP_QSTR_led       , MP_ARG_INT                   , {.u_int     = -1                           }},
+        { MP_QSTR_detect    , MP_ARG_INT                   , {.u_int     = -1                           }},
+        { MP_QSTR_wait      , MP_ARG_BOOL                  , {.u_bool    = false                        }},
     };
     
     mp_arg_val_t kw[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all_kw_array(n_args, n_kw, args, MP_ARRAY_SIZE(allowed_args), allowed_args, kw);
     
-    //setup spi pins
-    gpio_set_function(kw[ARG_sck].u_int,  GPIO_FUNC_SPI);
-    gpio_set_function(kw[ARG_mosi].u_int, GPIO_FUNC_SPI);
-    gpio_set_function(kw[ARG_miso].u_int, GPIO_FUNC_SPI);
-    
-    //setup sdobject
-    mp_obj_t sdo_args[3];
-    sdo_args[0] = mp_obj_new_int(kw[ARG_spi].u_int);
-    sdo_args[1] = mp_obj_new_int(kw[ARG_cs].u_int);
-    sdo_args[2] = mp_obj_new_int(kw[ARG_baudrate].u_int);
-    self->sdobject = MP_OBJ_TO_PTR(SDObject_make_new(NULL, 3, 0, sdo_args));
+    self->sck       = kw[ARG_sck].u_int ; 
+    self->mosi      = kw[ARG_mosi].u_int;
+    self->miso      = kw[ARG_miso].u_int;
+    self->detect    = kw[ARG_detect].u_int;
+    self->spi       = mp_obj_new_int(kw[ARG_spi].u_int);
+    self->cs        = mp_obj_new_int(kw[ARG_cs].u_int);
+    self->baud      = mp_obj_new_int(kw[ARG_baudrate].u_int);
+    self->led       = mp_obj_new_int(kw[ARG_led].u_int);
+    self->conn      = false;
+    self->mounted   = false;
     
     //store drive letter
     mp_check_self(mp_obj_is_str_or_bytes(kw[ARG_drive].u_obj));
     GET_STR_DATA_LEN(kw[ARG_drive].u_obj, str, str_len);
+    self->drive = (strcmp((const char*)str, "nul") != 0) ? (const char*)str : (const char*)"/sd";
     
-    if (strcmp((const char*)str, "nul") != 0) self->drive = (const char*)str;
-    else                                      self->drive = (const char*)"/sd";
+    if (self->detect > -1) {
+        gpio_set_function(self->detect, GPIO_FUNC_SIO); 
+        gpio_set_dir(self->detect, GPIO_IN);
+        gpio_set_pulls(self->detect, false, false);
+    }
     
-    if (kw[ARG_mount].u_bool == true) SDCard_mount(MP_OBJ_FROM_PTR(self));
+    mp_obj_t setup_args[3];
+    setup_args[0] = self;
+    setup_args[1] = mp_obj_new_bool(kw[ARG_automount].u_bool);
+    setup_args[2] = mp_obj_new_bool(kw[ARG_wait].u_bool);
+    SDCard_setup(3, setup_args, (mp_map_t *)&mp_const_empty_map);
     
     return MP_OBJ_FROM_PTR(self);
 }
@@ -554,6 +646,7 @@ STATIC const mp_rom_map_elem_t SDCard_locals_dict_table[] = {
     /* None of this will ever be reached
     { MP_ROM_QSTR(MP_QSTR_mount), MP_ROM_PTR(&SDCard_mount_obj) },
     { MP_ROM_QSTR(MP_QSTR_eject), MP_ROM_PTR(&SDCard_eject_obj) },
+    { MP_ROM_QSTR(MP_QSTR_setup), MP_ROM_PTR(&SDCard_setup_obj) },
     */
 };
 
@@ -562,21 +655,34 @@ STATIC MP_DEFINE_CONST_DICT(SDCard_locals_dict, SDCard_locals_dict_table);
 STATIC void SDCard_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
     sdcard_SDCard_obj_t *self = MP_OBJ_TO_PTR(self_in);
     if (dest[0] == MP_OBJ_NULL) {
+        bool ready = ((self->detect < 0 || (self->detect > -1 && gpio_get(self->detect))) && self->conn);
         if (attr == MP_QSTR_drive)
             dest[0] = mp_obj_new_str(self->drive, strlen(self->drive));
         else if (attr == MP_QSTR_type)
-            dest[0] = mp_obj_new_str(self->sdobject->type, strlen(self->sdobject->type));
+            dest[0] = (self->conn) ? mp_obj_new_str(self->sdobject->type, strlen(self->sdobject->type)) : mp_const_none;
         else if (attr == MP_QSTR_sectors)
-            dest[0] = mp_obj_new_int(self->sdobject->sectors);
+            dest[0] = (self->conn) ? mp_obj_new_int(self->sdobject->sectors) : mp_const_none;
         else if (attr == MP_QSTR_mount) {
-            dest[0] = MP_OBJ_FROM_PTR(&SDCard_mount_obj);
-            dest[1] = self;  
+            if (ready) {
+                if (!self->mounted) {
+                    dest[0] = MP_OBJ_FROM_PTR(&SDCard_mount_obj);
+                    dest[1] = self;  
+                } else mp_printf(MP_PYTHON_PRINTER, "%s Already Mounted", self->drive);
+            } else mp_printf(MP_PYTHON_PRINTER, "SD Card not inserted or not initialized");
         }
         else if (attr == MP_QSTR_eject) {
-            dest[0] = MP_OBJ_FROM_PTR(&SDCard_eject_obj);
+            if (ready) {
+                if (self->mounted) {
+                    dest[0] = MP_OBJ_FROM_PTR(&SDCard_eject_obj);
+                    dest[1] = self; 
+                } else mp_printf(MP_PYTHON_PRINTER, "%s Already Ejected", self->drive);
+            } else mp_printf(MP_PYTHON_PRINTER, "SD Card not inserted or not initialized");
+        }
+        else if (attr == MP_QSTR_setup) {
+            dest[0] = MP_OBJ_FROM_PTR(&SDCard_setup_obj);
             dest[1] = self;  
         }
-    } 
+    }
 }
 
 const mp_obj_type_t sdcard_SDCard_type = {
