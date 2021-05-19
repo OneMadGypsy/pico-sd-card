@@ -39,24 +39,25 @@ class SDCard(object):
         
     def __waiting(self, wait:bool=False) -> bool:
         if wait:
-            return not (self.__detect is None or self.__detect.value()) and (not self.__conn)
+            return not (self.__detect is None or self.__detect.value())
         return False
             
     def setup(self, automount:bool=True, wait:bool=False) -> None:
-        while self.__waiting(wait):
-            sleep_ms(500)
+        if not self.__conn:
+            while self.__waiting(wait):
+                sleep_ms(500)
         
-        sleep_ms(300)   #an extra little wait to make sure the sdcard is fully seated before connecting
-        if (self.__detect is None or self.__detect.value()) and not self.__conn:
-            self.__sd      = SDObject(self.__spi, Pin(self.__cs, Pin.OUT), self.__baud, self.__led)
-            self.__type    = self.__sd.type
-            self.__sectors = self.__sd.sectors
-            self.__conn    = True
+            sleep_ms(300)   #an extra little wait to make sure the sdcard is fully seated before connecting
+            if (self.__detect is None or self.__detect.value()):
+                self.__sd      = SDObject(self.__spi, Pin(self.__cs, Pin.OUT), self.__baud, self.__led)
+                self.__type    = self.__sd.type
+                self.__sectors = self.__sd.sectors
+                self.__conn    = True
             
-            if automount:
-                self.mount()
-        else:
-            print("No SDCard Detected")
+                if automount:
+                    self.mount()
+            else:
+                print("No SDCard Detected")
         
     def mount(self) -> None:
         if (self.__detect is None or self.__detect.value()) and self.__conn:
