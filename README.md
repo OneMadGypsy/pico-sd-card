@@ -156,7 +156,7 @@ log = ujson.load(open("{}/log.json".format(sd.drive), 'r'))
 
 **mount() / eject()**
 
-You can turn off `automount`, and `mount` the sdcard manually at a later time. You can also `eject` the sdcard whenever you like. Conditions are in place that wont run the `mount` feature if the sdcard is already mounted, and wont run the `eject` feature if the card is already ejected.
+You can turn off `automount`, and `mount` the sdcard manually at a later time. You can also `eject` the sdcard whenever you like. Conditions are in place that wont run the `mount` feature if the sdcard is already mounted, and wont run the `eject` feature if the card is already ejected. When a card is ejected it is also removed from the system path.
 ```python
 import sdcard, ujson
 
