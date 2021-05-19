@@ -216,12 +216,23 @@ test.Test()
 
 ## Tips:
 
-If you have a card reader that automatically converts 5v to 3.3v apparently the `miso` line will spit out 5v to the Pico, which is not tolerant of 5v. A solution to this is to completely remove the level shifter from the card and short `Vin` to `Vout` where the level shifter was, as illustrated below. This will allow you to connect the reader directly to 3.3v.
 
-![example image](https://i.imgur.com/cGMl2l3.jpg "level shifter removed and shorted")
+### 5v Voltage Regulated Cards
 
-Another solution that utilizes a micro sd card adapter can be found [here](https://www.raspberrypi.org/forums/viewtopic.php?f=146&t=307275#p1838662)
+If you have a card reader that automatically converts 5v to 3.3v, apparently the `miso` line will output 5v to the Pico, which is not tolerant of 5v. A solution to this is to completely remove the level shifter from the card and short `Vin` to `Vout` where the level shifter was (as illustrated below). This will allow you to connect the reader directly to 3.3v.
 
-If you are using a Pimoroni Pico Explorer and the type of card reader depicted in the image above, using the Explorer's `SPI` breakout pins will be futile. Your display will stop working while the reader is plugged in. The complications are multiplied because the Explorer uses all of the `SPI1` capable pins for the motor drivers and it's buttons. My solution to this requires some hacking. By soldering female headers across pins 8 through 11 you can bypass the motor drivers and use `SPI1` for the card reader. It's not illustrated in the below image but I also broke off the male header pins just to make sure that there was no connection at all to the motor drivers. I soldered a female header onto the 3.3v pin because I'm already using the Explorer's breakout for something else. I just unplugged it all to simplify the image.
+![Modified 5v Voltage Regulated SD Card Reader](https://i.imgur.com/cGMl2l3.jpg "level shifter removed and shorted")
 
-![example image](https://i.imgur.com/YR19ubJ.jpg "hacked")
+<br />
+
+### Using A MicroSD Card Adapter
+
+Instructions on how to use a card adapter as a reader can be found [here](https://www.raspberrypi.org/forums/viewtopic.php?f=146&t=307275#p1838662)
+
+<br />
+
+### Pimoroni Pico Explorer
+
+If you are using a Pimoroni Pico Explorer and the type of card reader depicted in the image above, using the Explorer's `SPI` breakout pins will be futile. Your display will stop working while the reader is plugged in. The complications are multiplied because the Explorer uses all of the `SPI1` capable pins for the motor drivers and it's buttons. My solution to this requires some hacking. By soldering female headers across pins 8 through 11 you can bypass the motor drivers and use `SPI1` for the card reader. It's not illustrated in the below image, but I also broke off the male header pins just to make sure that there was no connection at all to the motor drivers. I soldered a female header onto the 3.3v pin because I'm already using the Explorer's breakout for something else. I just unplugged it all to simplify the image.
+
+![Pimoroni Pico Explorer with SD Card Reader Hacked In](https://i.imgur.com/YR19ubJ.jpg "hacked")
