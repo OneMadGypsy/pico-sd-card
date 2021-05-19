@@ -144,17 +144,17 @@ sd = sdcard.SDCard(1, 10, 11, 8, 9)
 
 **detection and waiting**
 
-In this example we use a `baudrate` of 16mhz, and the on-board LED. It is implied that our sdcard reader has a `detect` feature and it is connected to `pin 15`. Since `wait` is `True` the script will sit in an infinite loop waiting for an sdcard to be inserted (if one is not already), and will automatically connect once one is. Then our `json` file will load. This feature may be handy if it is mandatory for an sdcard to be inserted in order for the system to proceed. In this case, it is implied that our system depends on log information.
+In this example we use a `baudrate` of 16mhz, and the on-board LED. It is implied that our sdcard reader has a `detect` feature and it is connected to `pin 15`. Since `wait` is `True` the script will sit in an infinite loop waiting for an sdcard to be inserted (if one is not already), and will automatically connect once one is. Then our `json` file will load. This feature may be handy if it is mandatory for an sdcard to be inserted in order for the system to proceed. In this case, it is implied that our system depends on log information to continue.
 ```python
 import sdcard, ujson
 
 sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=True)
 
-log = ujson.load(open("{}/log.json".format(sd.drive), 'r')
+log = ujson.load(open("{}/log.json".format(sd.drive), 'r'))
 ```
 <br />
 
-**mount()/eject()**
+**mount() / eject()**
 
 You can turn off `automount`, and `mount` the sdcard manually at a later time. You can also `eject` the sdcard whenever you like. Conditions are in place that wont run the `mount` feature if the sdcard is already mounted, and wont run the `eject` feature if the card is already ejected.
 ```python
@@ -166,7 +166,7 @@ sd = sdcard.SDCard(1, 10, 11, 8, 9, mount=False)
 
 sd.mount()
 
-#this line represents gathering data from the sdcard
+#this line represents an itermittent need for the sdcard
 
 sd.eject()
 ```
@@ -174,7 +174,7 @@ sd.eject()
 
 **setup(`automount`, `wait`)**
 
-If you use the `detect` option, did not `wait`, and did not have an sdcard inserted, you can manually call the card setup at a later time to establish a connection. You can also designate whether you want to `automount` the card and/or `wait` for a card to be inserted.
+If you use the `detect` option, did not `wait`, and did not have an sdcard inserted, you can manually call the card setup at a later time to establish a connection. You can also designate whether you want to `automount` the card and/or `wait` for a card to be inserted. This feature can be used anywhere that it is mandatory for an sdcard to be connected and mounted. If an sdcard is already connected and mounted when this is called the request is simply ignored.
 ```python
 import sdcard
 
@@ -185,7 +185,7 @@ sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=F
 
 sd.setup(wait=True)
 
-# this line represents your operations once a card is inserted and detected
+# this line represents your operations once a card is inserted and detected if wait is True this will not be reached until a card is inserted
 ```
 <br />
 
