@@ -499,7 +499,7 @@ typedef struct _sdcard_SDCard_obj_t {
     mp_obj_t      led;
     bool          conn;
     bool          mounted;
-    uint8_t       detect;
+    int8_t        detect;
     uint8_t       mosi;
     uint8_t       miso;
     uint8_t       sck;
