@@ -161,6 +161,7 @@ If you are using one of the python versions you can leave `wait` false and allow
 import sdcard, ujson
 
 log = dict()
+sd  = None
 
 def get_logs(ready:bool):
     global log
