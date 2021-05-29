@@ -1,15 +1,12 @@
-from time import sleep_ms
-from sys import path as syspath
-from uos import mount as uosmount
-from uos import umount as uosumount
-from uos import stat as uosstat
+import time, uos
+from utime import sleep_ms
+from usys import path as syspath
 from machine import Pin, SPI
 
-_BAUD       = const(0x500000) #5 Mb ~ can be overwritten in SDCard constructor
+_BAUD        = const(0x500000) #5 Mb ~ can be overwritten in SDCard constructor
 
-_STAT_FLDR  = const(0x4000)
-_STAT_FILE  = const(0x8000)
-_NOCONN_ERR = "SD Card not inserted or not initialized"
+_NOCONN_WARN = 'SD Card Not Initialized'
+_NODTCT_WARN = 'SD Card Not Detected'
 
 class SDCard(object):
     @property
@@ -24,67 +21,122 @@ class SDCard(object):
     def type(self) -> int:
         return None if not self.__conn else self.__type
         
-    def __init__(self, spi:int, sck:int, mosi:int, miso:int, cs:int, baudrate:int=_BAUD, automount:bool=True, drive:str="/sd", led:int=-1, detect:int=-1, wait:bool=False) -> None:
+    @property
+    def detected(self) -> bool:
+        return ((self.__detect == -1) or (self.__detect.value() > 0))
+        
+    @property
+    def ready(self) -> bool:
+        return self.__mntd
+        
+    @property
+    def __warnings(self) -> bool:
+        if not self.__conn:
+            print(_NOCONN_WARN)
+            return True
+            
+        if not self.detected:
+            print(_NODTCT_WARN)
+            return True
+        
+        return False
+        
+    def __change(self, pin:Pin):
+        if self.__detect.value() == 1 and not self.__conn:
+            sleep_ms(250)                                           #an extra little wait to make sure the sdcard is fully seated before connecting
+            if self.__detect.value() == 1 and not self.__conn:      #double check that it isn't just a cheap detect switch making an ittermitent connection
+                print("SD Card Inserted")
+                self.detect()
+        else:
+            if self.__conn:
+                print("SD Card Removed")
+                self.eject()
+                self.__conn = False
+        
+    def __init__(self, spi:int, sck:int, mosi:int, miso:int, cs:int, baudrate:int=_BAUD, automount:bool=True, drive:str='/sd', led:int=-1, detect:int=-1, wait:bool=False, callback=None) -> None:
         self.__spi     = SPI(spi, sck=Pin(sck, Pin.OUT), mosi=Pin(mosi, Pin.OUT), miso=Pin(miso, Pin.OUT))
         self.__cs      = cs
         self.__baud    = baudrate
         self.__drive   = drive
         self.__led     = led
         self.__conn    = False
-        self.__mounted = False
+        self.__mntd    = False
+        self.__sd      = None
+        self.__cb      = callback
         
-        self.__detect = None if detect < 0 else Pin(detect, Pin.IN)
+        self.__detect  = -1 
+        if detect > -1:
+            self.__detect = Pin(detect, Pin.IN)
+            self.__detect.irq(self.__change, Pin.IRQ_FALLING|Pin.IRQ_RISING)
             
-        self.setup(automount, wait)
+        self.detect(automount, wait)
+        
+    #__> Print The Current State Of This Instance
+    def state(self) -> None:
+        print('Detected: {}, Connected: {}, Mounted: {}'.format(self.detected, self.__conn, self.__mntd))
         
     def __waiting(self, wait:bool=False) -> bool:
-        if wait:
-            return not (self.__detect is None or self.__detect.value())
-        return False
-            
-    def setup(self, automount:bool=True, wait:bool=False) -> None:
+        return not self.detected if wait else False
+     
+    #__> Detect And Connect To Card
+    def detect(self, automount:bool=True, wait:bool=False, maxwait:int=0, interval:int=500, callback=None) -> bool:
+        self__cb   = callback if not callback is None else self.__cb
+        is_maxwait = bool(maxwait)
         if not self.__conn:
-            while self.__waiting(wait):
-                sleep_ms(500)
-        
-            sleep_ms(300)   #an extra little wait to make sure the sdcard is fully seated before connecting
-            if (self.__detect is None or self.__detect.value()):
-                self.__sd      = SDObject(self.__spi, Pin(self.__cs, Pin.OUT), self.__baud, self.__led)
-                self.__type    = self.__sd.type
-                self.__sectors = self.__sd.sectors
-                self.__conn    = True
-            
-                if automount:
-                    self.mount()
+            if self.__waiting(wait):
+                print('Waiting For A Card To Be Inserted')
+                
+                if maxwait > 0:
+                    while (maxwait > 0) and self.__waiting(wait):
+                        sleep_ms(interval)
+                        maxwait -= 1
+                elif not is_maxwait:
+                    while self.__waiting(wait):
+                        sleep_ms(interval)
+                
+                sleep_ms(250) #an extra little wait to make sure the sdcard is fully seated before connecting
+                
+            if self.detected:
+                try:
+                    self.__sd      = SDObject(self.__spi, Pin(self.__cs, Pin.OUT), self.__baud, self.__led)
+                    self.__type    = self.__sd.type
+                    self.__sectors = self.__sd.sectors
+                    self.__conn    = True
+                except OSError as err:
+                    print('Card was not properly instantiated\nReason: {}'.format(err))
+                    return False
             else:
-                print("No SDCard Detected")
-        
-    def mount(self) -> None:
-        if (self.__detect is None or self.__detect.value()) and self.__conn:
-            if not self.__mounted:
-                print('{} Mounted'.format(self.__drive))
-                uosmount(self.__sd, self.__drive)
-                syspath.append(self.__drive)
-                self.__mounted = True
-            else:
-                print('{} Already Mounted'.format(self.__drive))
-        else:
-            print(_NOCONN_ERR)
-            
-    def eject(self) -> None:
-        if (self.__detect is None or self.__detect.value()) and self.__conn:
-            if self.__mounted:
-                print('{} Ejected'.format(self.__drive))
-                uosumount(self.__drive) 
-                syspath.remove(self.__drive)
-                self.__mounted = False
-            else:
-                print('{} Not Mounted'.format(self.__drive))
-        else:
-            print(_NOCONN_ERR)
-
- 
+                print(_NODTCT_WARN)
+                return False
+                
+        self.mount() if automount else None
+        return True
     
+    #_> Mount Card
+    def mount(self) -> None:
+        if self.__warnings:
+            return
+            
+        if not self.__mntd:
+            print('{} Mounted'.format(self.__drive))
+            uos.mount(self.__sd, self.__drive)
+            syspath.append(self.__drive)
+            self.__mntd = True
+            if not self.__cb is None:
+                self.__cb(True)
+            
+    #_> UMount Card
+    def eject(self) -> None:
+        if self.__mntd:
+            print('{} Ejected'.format(self.__drive))
+            uos.umount(self.__drive) 
+            syspath.remove(self.__drive)
+            self.__mntd = False
+            if not self.__cb is None:
+                self.__cb(False)
+ 
+ 
+ 
 _IOCTL_INIT         = const(1)
 _IOCTL_DEINIT       = const(2)
 _IOCTL_SYNC         = const(3)
@@ -124,7 +176,6 @@ class SDObject(object):
         self.spi.init(baudrate=100000, phase=0, polarity=0)
         self.cs(1)
         
-        
         self.led = None
         if led > -1:
             self.led = Pin(led, Pin.OUT)
@@ -143,19 +194,12 @@ class SDObject(object):
             if self.cmd(_CMD0, 0, 0x95) == _IDLE_STATE:
                 break
         else:
-            raise OSError("No Card")
-
-        r = self.cmd(_CMD8, 0x01AA << 8, 0x87, 4)
+            raise OSError('No Card')
         
-        if r == _IDLE_STATE:
-            self.init_card_v2()
-        elif r == (_IDLE_STATE | _ILLEGAL_CMD):
-            self.init_card_v1()
-        else:
-            raise OSError("Unknown Version")
+        self.versioning()
 
         if self.cmd(_CMD9, release=False):
-            raise OSError("No Response")
+            raise OSError('No Response')
             
         csd = bytearray(16)
         self.readinto(csd)
@@ -167,37 +211,38 @@ class SDObject(object):
             c_size_mult  = (csd[9] & 0x3) << 1 | csd[10] >> 7
             self.sectors = (c_size + 1) * (2 ** (c_size_mult + 2))
         else:
-            raise OSError("CSD Format Unsupported")
+            raise OSError('CSD Format Unsupported')
             
         csd = None
 
         if self.cmd(_CMD16, _BLOCK << 8):
-            raise OSError("Can't Set Block Size")
+            raise OSError('Can\'t Set Block Size')
 
         self.spi.init(baudrate=baudrate, phase=0, polarity=0)
         
-        print(self.spi)
-        
-    def init_card_v1(self) -> None:
-        for _ in range(_CMD_TIMEOUT):
-            self.cmd(_CMD55)
-            if not self.cmd(_CMD41):
-                self.cdv  = _BLOCK
-                self.type = '[SDCard v1]'
-                return
-        raise OSError("Timeout")
-        
-    def init_card_v2(self) -> None:
-        for i in range(_CMD_TIMEOUT):
-            sleep_ms(50)
-            self.cmd(_CMD58, final=4)
-            self.cmd(_CMD55)
-            if not self.cmd(_CMD41, 0x40 << 32):
+    def versioning(self):
+        r = self.cmd(_CMD8, 0x01AA << 8, 0x87, 4)
+        if r == _IDLE_STATE:
+            for i in range(_CMD_TIMEOUT):
+                sleep_ms(50)
                 self.cmd(_CMD58, final=4)
-                self.cdv = 1
-                self.type = '[SDCard v2]'
-                return
-        raise OSError("Timeout")
+                self.cmd(_CMD55)
+                if not self.cmd(_CMD41, 0x40 << 32):
+                    self.cmd(_CMD58, final=4)
+                    self.cdv = 1
+                    self.type = '[SDCard v2]'
+                    return
+            raise OSError('Timeout')
+        elif r == (_IDLE_STATE | _ILLEGAL_CMD):
+            for _ in range(_CMD_TIMEOUT):
+                self.cmd(_CMD55)
+                if not self.cmd(_CMD41):
+                    self.cdv  = _BLOCK
+                    self.type = '[SDCard v1]'
+                    return
+            raise OSError('Timeout')
+        else:
+            raise OSError('Unknown Version')
         
     def cmd(self, cmd:int, arg:int=0, crc:int=0, final:int=0, release:bool=True, skip:bool=False) -> int:
         self.cs(0)
@@ -235,7 +280,7 @@ class SDObject(object):
             sleep_ms(1)
         else:
             self.cs(1)
-            raise OSError("Response Timeout")
+            raise OSError('Response Timeout')
 
         # read data
         self.spi.write_readinto(self.buf_mv[: len(buf)], buf)
@@ -288,7 +333,7 @@ class SDObject(object):
                 
     def readblocks(self, block_num:int, buf:bytearray) -> None:
         nblocks, err = divmod(len(buf), _BLOCK)
-        assert nblocks and not err, "Invalid Buffer Length"
+        assert nblocks and not err, 'Invalid Buffer Length'
         
         self.indicator(True)
         
@@ -314,7 +359,7 @@ class SDObject(object):
     
     def writeblocks(self, block_num:int, buf:bytearray) -> None:
         nblocks, err = divmod(len(buf), _BLOCK)
-        assert nblocks and not err, "Invalid Buffer Length"
+        assert nblocks and not err, 'Invalid Buffer Length'
         
         self.indicator(True)
         
