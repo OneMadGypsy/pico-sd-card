@@ -51,7 +51,7 @@ The 2 python versions of the port are identical. The C port differs slightly in 
 ## Docs:
 
 
-**SDCard(`spi`, `sck`, `mosi`, `miso`, `cs`, `baudrate`, `automount`, `drive`, `led`, `detect`, `wait`)**
+**SDCard(`spi`, `sck`, `mosi`, `miso`, `cs`, `baudrate`, `automount`, `drive`, `led`, `detect`, `wait`, `callback`)**
 > Main SDCard interface
 
 | Args          | Type | Description                                                    | Default     |
