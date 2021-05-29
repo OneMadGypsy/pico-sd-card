@@ -160,7 +160,7 @@ If you are using one of the python versions you can leave `wait` false and allow
 ```python
 import sdcard, ujson
 
-log = ''
+log = dict()
 
 def get_logs(ready:bool):
     global log
