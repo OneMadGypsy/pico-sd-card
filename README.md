@@ -1,5 +1,5 @@
 # pico-sd-card
-SD card scripts for Raspberry Pi Pico. If you are intending to use an SD card as a serious file system for your pico, you may also be interested in my [simple-cli](https://github.com/OneMadGypsy/simple-cli) module.
+SD card drivers for Raspberry Pi Pico. If you are intending to use an SD card as a serious file system for your pico, you may also be interested in my [simple-cli](https://github.com/OneMadGypsy/simple-cli) module.
 
 **tested with micropython versions:**
 - v1.14-137-g172fb5230-dirty
