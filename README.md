@@ -1,5 +1,5 @@
 # pico-sd-card
-SD card scripts for Raspberry Pi Pico. This began as a polishing of the `sdcard.py` script from [here](https://github.com/micropython/micropython/blob/a1bc32d8a8fbb09bc04c2ca07b10475f7ddde8c3/drivers/sdcard/sdcard.py), but has been expanded to include ports of that script with numerous changes. Even though this repo is titled **pico-sd-card** these scripts should work with every device the original script worked with, except PyBoard. PyBoard was taken out because it was the only device that had special exceptions. I made an executive decision that I don't want exceptions in my code that only 1 board needs. Regardless of possible, and even definite compatibility with other boards, I only support it's use on the Raspberry Pi Pico. That's what I modify and test these scripts with.
+SD card scripts for Raspberry Pi Pico. If you are intending to use an SD card as a serious file system for your pico, you may also be interested in my [simple-cli](https://github.com/OneMadGypsy/simple-cli) module.
 
 **tested with micropython versions:**
 - v1.14-137-g172fb5230-dirty
@@ -13,38 +13,11 @@ _To discus features, bugs or share your own project that utilize code in this re
 
 <br />
 
-- - - - 
-
-<br />
-
-## Changes:
-
-1) numerous unnecessary variables have been removed
-2) `while` loops have been replaced with `range` loops where possible
-3) all commands have been converted to constants
-4) strings have been shortened to reflect the same meaning of their intended message in less characters
-5) all unnecessary comparisons have been removed
-6) command construction has been changed entirely
-7) support for pyboard was removed
-8) imports have been made more specific
-9) main class has been renamed `SDObject`
-10) everything has been annotated
-11) `SDCard` is now a wrapper for `SDObject`
-12) ioctl has been fleshed out to include all cmds
-13) automatically mount the `SDCard` and add it to `sys.path` option
-14) indicator LED option
-15) detection pin option
-16) wait for `SDCard` detection option
-
-<br />
-
 -------
 
 <br />
 
 ## Ports:
-
-**All 3 ports have an identical interface from the front-end.**
 
 ### sdcard.py
 >This can be uploaded directly to the board, but is intended to be used as a frozen module. For information regarding how to setup the sdk and freeze a module you can refer to [this post](https://www.raspberrypi.org/forums/viewtopic.php?f=146&t=306449#p1862108) on the Raspberry Pi forum.
@@ -58,6 +31,16 @@ _To discus features, bugs or share your own project that utilize code in this re
 >This contains a pure C port of `sdcard.py` packaged as a `USER_C_MODULE`. If you have the sdk setup it can be compiled into firware by navigating to `./ports/rp2/` and running the following command:
 
 `make USER_C_MODULES=/path/to/modules/micropython.cmake all`
+
+<br />
+
+-------
+
+<br />
+
+## Differences:
+
+>The 2 python versions of the port are identical. The C port differs slightly in that it cannot detect when a card is inserted/removed in real time, and as such it does not support the `callback` argument in the SDCard module's `constructor` or `detect` method. The reason behind the difference is due to how interrupt requests are handled in the `Pin` class, coupled with the fact that the `Pin` class does not have a public interface exposed to C. Every interrupt request is sent to one function in `Pin`. That function then does a lookup on the actual pin that created the interrupt, finds it's handler and executes it. Without an interface for me to include the detect pin `irq` in the main look-up table the `irq` handler I create will, at best be overwritten, and at worst, break everything. Trying to create some hack to force my `irq` handler into the table makes my script hacky, and that is not part of my plan. I tried very hard to find some legitimate way to gel with the `Pin` class and failed. I'm sure there is some genius way to do it. If I ever figure it out I'll bring the C version up to speed.
 
 <br />
 
@@ -84,16 +67,20 @@ _To discus features, bugs or share your own project that utilize code in this re
 | **led**       | int  | pin id for a connected LED. LED is on during read/write        | -1 (no pin) |
 | **detect**    | int  | pin id for a detect feature                                    | -1 (no pin) |
 | **wait**      | bool | whether to wait for card insertion. Used with detect (blocks)  | False       |
+| **callback**  | func | detection callback (python versions only)                      | None        |
 
 <br />
 
-**.setup(`automount`, `wait`)**
-> Manual setup option for use with the `detect` option. This is done automatically if a card was present or `wait` was `True` when `SDCard` was instantiated 
+**.detect(`automount`, `wait`, `maxwait`, `interval`, `callback`)**
+> Manual setup option for use with the `detect` arguments of the constructor. This is done automatically if a card was present or `wait` was `True` when `SDCard` was instantiated 
 
 | Args          | Type | Description                                                    | Default     |
 | ------------- |------|----------------------------------------------------------------|-------------|
 | **automount** | bool | whether to automatically mount the drive                       | True        |
 | **wait**      | bool | whether to wait for card insertion. Used with detect (blocks)  | False       |
+| **maxwait**   | int  | max amount of `intervals` to wait (0 = forever)                | 0           |
+| **interval**  | int  | amount of milliseconds to sleep between checks                 | 500         |
+| **callback**  | func | detection callback (python versions only)                      | None        |
 
 <br />
 
@@ -104,6 +91,11 @@ _To discus features, bugs or share your own project that utilize code in this re
 
 **.eject()**
 > Eject a mounted card. If no card is mounted nothing happens.
+
+<br />
+
+**.state()**
+> Prints the `detected`, `connected` and `mounted` state of the sdcard.
 
 <br />
 
@@ -122,12 +114,21 @@ _To discus features, bugs or share your own project that utilize code in this re
 
 <br />
 
+**.detected**
+> Returns whether an sdcard is currently detected (True|False).
+
+<br />
+
+**.ready**
+> Returns if the sdcard is 100% ready (True|False).
+
+<br />
 ------
 
 <br />
 
 ## Usage:
->*The below scripts reflect a basic `SPI1` setup. The pin ids you use will depend on the pins your card is connected to. If you are unsure of your options, you can use this [pinout](https://hackaday.com/wp-content/uploads/2021/01/pico_pinout.png) as a reference.*
+>*The below scripts reflect a basic `SPI1` setup (SPI0 is also supported). The pin ids you use will depend on the pins your card is connected to. If you are unsure of your options, you can use this [pinout](https://hackaday.com/wp-content/uploads/2021/01/pico_pinout.png) as a reference.*
 
 <br />
 
@@ -152,6 +153,22 @@ sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=T
 
 log = ujson.load(open("{}/log.json".format(sd.drive), 'r'))
 ```
+
+<br />
+
+If you are using one of the python versions you can leave `wait` false and allow the built-in interrupt request to catch when a card is inserted, using a `callback` to load the `json` file.
+```python
+import sdcard, ujson
+
+log = ''
+
+def get_logs(ready:bool):
+    global log
+    if ready:
+        log = ujson.load(open("{}/log.json".format(sd.drive), 'r'))
+
+sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, callback=get_logs)
+```
 <br />
 
 **mount() / eject()**
@@ -170,11 +187,14 @@ sd.mount()
 
 sd.eject()
 ```
+
 <br />
 
-**setup(`automount`, `wait`)**
+**detect(`automount`, `wait`, `maxwait`, `interval`, `callback`)**
 
-If you use the `detect` option, did not `wait`, and did not have an sdcard inserted, you can manually call the card setup at a later time to establish a connection. You can also designate whether you want to `automount` the card and/or `wait` for a card to be inserted. This feature can be used anywhere that it is mandatory for an sdcard to be connected and mounted. If an sdcard is already connected and mounted when this is called the request is simply ignored.
+>`callback` is **NOT** available in the C port
+
+If you used the detect arguments in the constructor, did not `wait`, and did not have an sdcard inserted, you can manually call the card setup at a later time to establish a connection. You can also designate whether you want to `automount` the card and/or `wait` for a card to be inserted. This feature can be used anywhere that it is mandatory for an sdcard to be connected and mounted. If an sdcard is already connected and mounted when this is called the request is simply ignored.
 ```python
 import sdcard
 
@@ -183,10 +203,29 @@ sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=F
 
 # this line represents your operations between instantiating and initializing the sdcard
 
-sd.setup(wait=True)
+sd.detect(wait=True)
 
 # this line represents your operations once a card is inserted and detected 
 # if wait is True this will not be reached until a card is inserted
+```
+
+<br />
+
+If you are using one of the python versions you can leave `wait` false and allow the built-in interrupt request to catch when a card is inserted, using a `callback` to perform proceeding operations.
+```python
+import sdcard
+
+#init sd card
+sd = sdcard.SDCard(1, 10, 11, 8, 9, baudrate=0x10<<20, led=25, detect=15, wait=False)
+
+# this line represents your operations between instantiating and initializing the sdcard
+
+def my_func(ready:bool):
+    if ready:
+        # this line represents your operations once a card is inserted and detected
+    pass
+
+sd.detect(callback=my_func)
 ```
 <br />
 
